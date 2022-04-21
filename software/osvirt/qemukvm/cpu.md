@@ -135,6 +135,41 @@ QEMU能够模拟多种CPU模型，因此需要一套继承结构来表示CPU对�
 | TYPE_CPU     | cpu_type_info     | CPUClass     | CPUState    |
 | TYPE_X86_CPU | x86_cpu_type_info | X86CPUClass  | X86CPU      |
 
-
-
 ### kvm侧vCPU的创建
+
+```
+kvm_vm_ioctl_create_vcpu
+  kvm_arch_vcpu_create
+    kvm_x86_ops->vcpu_create			// 对应vmx_create_vcpu() 
+      vmx = kmem_cache_zalloc
+      kvm_vcpu_init(&vmx->vcpu, ...)
+        page = alloc_page
+        vcpu->run = page_address(page)
+        kvm_arch_vcpu_init
+      alloc_loaded_vmcs(&vmx->vmcs01)           // 分配struct vcpu_vmx -> struct loaded_vmcs . *vmcs所指向的VMCS
+      vmx->loaded_vmcs = &vmx->vmcs01
+      vmx_vcpu_load
+      vmx_vcpu_setup(vmx)                       // 将vCPU的状态初始化为类似于pCPU刚上电时的状态
+  preempt_notifier_init
+  kvm_arch_vcpu_setup
+  create_vcpu_fd
+  kvm_arch_vcpu_postcreate
+```
+
+## vCPU的运行
+
+### QEMU侧vCPU的运行
+
+### kvm侧vCPU的运行
+
+```
+kvm_vcpu_ioctl
+  kvm_arch_vcpu_ioctl_run
+    vcpu_load
+    vcpu_run
+      kvm_vcpu_running
+      vcpu_enter_guest
+        kvm_x86_ops->prepare_guest_switch       // 对应vmx_prepare_switch_to_guest()
+        ... ...
+        kvm_x86_ops->run                        // 对应vmx_vcpu_run()
+```

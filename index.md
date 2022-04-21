@@ -16,7 +16,7 @@
 
 [Kernel](software/osvirt/kernel/kernel.md)
 
-[Qemu/KVM](software/osvirt/qemu/qemu_kvm.md)
+[Qemu/KVM](software/osvirt/qemukvm/qemu_kvm.md)
 
 [Libvirt](software/osvirt/libvirt/libvirt.md)
 
@@ -37,3 +37,5 @@
 [PAM机制与身份鉴别](software/misc/pam_id.md)
 
 [Make构建相关](software/misc/make.md)
+
+[ssh](software/misc/openssh.md)
