@@ -140,7 +140,7 @@ QEMU能够模拟多种CPU模型，因此需要一套继承结构来表示CPU对�
 ```
 kvm_vm_ioctl_create_vcpu
   kvm_arch_vcpu_create
-    kvm_x86_ops->vcpu_create			// 对应vmx_create_vcpu() 
+    kvm_x86_ops->vcpu_create                    // 对应vmx_create_vcpu() 
       vmx = kmem_cache_zalloc
       kvm_vcpu_init(&vmx->vcpu, ...)
         page = alloc_page
@@ -172,4 +172,5 @@ kvm_vcpu_ioctl
         kvm_x86_ops->prepare_guest_switch       // 对应vmx_prepare_switch_to_guest()
         ... ...
         kvm_x86_ops->run                        // 对应vmx_vcpu_run()
+          __vmx_vcpu_run                        // 汇编开始，会调用vmentry。当返回时，即代表发生了VM_EXIT
 ```
