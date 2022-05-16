@@ -34,8 +34,10 @@
 
 ### 杂记
 
-[PAM机制与身份鉴别](software/misc/pam_id.md)
+[PAM机制](software/misc/pam.md)
+
+[Shadow-utils](software/misc/shadow_utils.md)
 
 [Make构建相关](software/misc/make.md)
 
-[ssh](software/misc/openssh.md)
+[openSSH](software/misc/openssh.md)

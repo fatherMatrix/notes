@@ -152,6 +152,10 @@ kvm_vm_ioctl_create_vcpu
       vmx_vcpu_setup(vmx)                       // 将vCPU的状态初始化为类似于pCPU刚上电时的状态
   preempt_notifier_init
   kvm_arch_vcpu_setup
+    vcpu_load
+    kvm_vcpu_reset
+      ...
+      memset(vcpu->arch.regs, 0)                // 普通寄存器都被置为0了
   create_vcpu_fd
   kvm_arch_vcpu_postcreate
 ```
@@ -166,11 +170,19 @@ kvm_vm_ioctl_create_vcpu
 kvm_vcpu_ioctl
   kvm_arch_vcpu_ioctl_run
     vcpu_load
+      preempt_notifier_register
+      kvm_arch_vcpu_load
+        ... ...
+        kvm_x86_ops->vcpu_load                                          // 对应vmx_vcpu_load()
+          vmx_vcpu_load_vmcs
+            per_cpu(current_vmcs, cpu) = vmx->loaded_vmcs->vmcs
+            vmcs_load(vmx->loaded_vmcs->vmcs)                           // 调用vmptrld指令
+          vmx_vcpu_pi_load
     vcpu_run
       kvm_vcpu_running
       vcpu_enter_guest
-        kvm_x86_ops->prepare_guest_switch       // 对应vmx_prepare_switch_to_guest()
+        kvm_x86_ops->prepare_guest_switch                               // 对应vmx_prepare_switch_to_guest()
         ... ...
-        kvm_x86_ops->run                        // 对应vmx_vcpu_run()
-          __vmx_vcpu_run                        // 汇编开始，会调用vmentry。当返回时，即代表发生了VM_EXIT
+        kvm_x86_ops->run                                                // 对应vmx_vcpu_run()
+          __vmx_vcpu_run                                                // 汇编开始，会调用vmentry。当返回时，即代表发生了VM_EXIT
 ```
