@@ -4,4 +4,6 @@
 
 [Audit System](audit.md)
 
+[VFS](vfs.md)
 
+[Mode](mode.md)
