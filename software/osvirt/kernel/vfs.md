@@ -66,6 +66,40 @@ open
     fd_install
 ```
 
+## close
+
+```
+close
+  __close_fd(current->files, fd)
+    spin_lock(&files->file_lock)
+    __put_unused_fd
+    spin_unlock()
+    filp_close()
+      filp->f_op->flush
+      fput(filp)
+        fput_many
+          ----                                           // 这里其实是用工作队列延迟执行____fput -> __fput
+          init_task_work(&file->f_u.fu_rcuhead, ____fput)
+          test_work_add(task, &file->f_u.fu_rcuhead)
+          ----
+          llist_add(&file->f_u.fu_llist, &delayed_fput_list)
+          schedule_delayed_work(&delayed_fput_work)
+          ----
+
+____fput
+  __fput
+    fsnotify_close
+    eventpoll_release
+    file->f_op->release
+    fops_put
+    dput
+      dentry_kill
+        __dentry_kill
+          ...
+    mntput
+    file_free
+```
+
 ## mount
 
 ```

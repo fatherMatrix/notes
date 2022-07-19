@@ -6,4 +6,8 @@
 
 [VFS](vfs.md)
 
+[Ext4](ext4.md)
+
 [Mode](mode.md)
+
+[Sched](sched.md)
