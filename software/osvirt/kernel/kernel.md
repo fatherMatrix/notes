@@ -8,6 +8,12 @@
 
 [Ext4](ext4.md)
 
+[Block](block.md)
+
+[PCI](pci.md)
+
 [Mode](mode.md)
 
 [Sched](sched.md)
+
+[KPROBE](kprobe.md)

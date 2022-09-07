@@ -58,6 +58,11 @@ open
         trailing_symlink(nd)                            // 处理文件链接
         do_last(nd, file, op)                           // 处理路径中最后的分量，执行打开操作
           ... ...
+          lookup_open                                   // 查找或者创建file结构体，并完成其附属结构体的查找或创建（dentry，inode） 
+            d_lookup                                    // 查找dentry，如果找到就返回 
+            dir_inode->i_op->create -- ext4_create      // 调用文件系统层的方法创建inode
+              ... ...
+              alloc_inode
           may_open                                      // 检查权限
             inode_permission                            // 对inode中保存的权限进行检查，包括UGO和ACL
           vfs_open
@@ -98,6 +103,31 @@ ____fput
           ...
     mntput
     file_free
+```
+
+## unlink
+
+```
+unlink
+  do_unlinkat
+    vfs_unlink
+      inode_lock
+      dir->i_op->unlink
+      inode_unlock
+      iput
+        atomic_dec_and_lock
+        mark_inode_dirty_sync        
+          ... ...                                       // 唤醒回写线程
+        iput_final
+          sop->drop_inode                               // 判断是否应该evict本inode
+          evict
+            inode_sb_list_del
+            inode_wait_for_writeback                    // 既然已经决定要删除了，为什么还要等他写完呢？
+            destroy_inode
+              __destroy_inode
+                security_inode_free
+              inode->free_inode = sop->free_inode
+              call_rcu(&inode->i_rcu, i_callback)
 ```
 
 ## mount

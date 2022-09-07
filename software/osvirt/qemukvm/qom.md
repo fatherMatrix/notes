@@ -99,12 +99,69 @@ do_qemu_init_ ## pci_edu_register_types       /* 函数大概调用流程
 
 ### module_call_init()
 
-上面
-
 ## 类型初始化
 
+```
+type_initialize
+  ti->class_size = type_class_get_size(ti)
+  ti->instance_size = type_object_get_size(ti)
+  ti->class = g_malloc0(ti->class_size)
+  type_initialize(parent)                           
+  type_initialize_interface
+  ti->class_init()
+```
+
 ## 对象初始化
+
+```
+object_new
+  object_new_with_type
+    object_initialize_with_type
+      object_init_with_type
+```
 
 ## 接口
 
 ## 属性
+
+类属性存在于ObjectClass的properties域中，这个域是在类型初始化函数type_initialize()中构造的。对象属性存在与Object的properties域中，这个域是在对象的初始化函数object_initialize_with_type()中构造的。两者皆为一个哈希表，存着属性名字到ObjectProperty的映射。
+
+ObjectProperty的定义如下：
+
+```
+typedef struct ObjectProperty
+{
+    gchar *name;
+    gchar *type;
+    gchar *description;
+    ObjectPropertyAccessor *get;
+    ObjectPropertyAccessor *set;
+    ObjectPropertyResolve *resolve;
+    ObjectPropertyRelease *release;
+    void *opaque;
+} ObjectProperty;
+
+
+Object / ObjectClass
+   +------------+
+   |            |
+   |            |
+   |            |
+   +------------+
+   | properties |---------+--------------------------------
+   +------------+         |                  |
+   |            |         |                  |
+   |            |     +--------+        +--------+
+   |            |     |  name  |        |  name  |
+   +------------+     +--------+        +--------+
+                      |  type  |        |  type  |
+                      +--------+        +--------+
+                      |   set  |        |   set  |----> property_set_bool
+                      +--------+        +--------+
+                      |   get  |        |   get  |----> property_get_bool
+                      +--------+        +--------+      
+                      | opaque |        | opaque |--+ 
+                      +--------+        +--------+  |   +----------------------------------------------+
+                                                    +-> | BoolProperty / StringProperty / LinkProperty |
+                                                        +----------------------------------------------+
+```

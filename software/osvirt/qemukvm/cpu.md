@@ -47,14 +47,21 @@ VMXON ----> |                                  Virtual Machine Monitor          
 ## kvm内核模块启动过程
 
 ```
-kvm_init
-  kvm_arch_init
-  kvm_irqfd_init
-  kvm_arch_hardware_setup
-  kvm_arch_check_processor_compat
-  register_xxx_notifier
-  kvm_async_pf_init
-  misc_register
+vmx_init
+  kvm_init(&vmx_x86_ops, sizeof(vcpu_vmx))
+    kvm_arch_init                               // 初始化架构相关代码，设置kvm_x86_ops全局变量、检测是否支持vmx特性、分配shared_msrs、初始化mmu_module
+    kvm_irqfd_init
+    kvm_arch_hardware_setup
+      kvm_x86_ops->hardware_setup()             // kvm_x86_ops == &vmx_x86_ops
+        setup_vmcs_config(&vmcs_config, ...)    // 根据硬件CPU的特性填充vmcs_config全局变量，后面创建vCPU的时候，以此作为模版
+        alloc_kvm_area                          // 这里对每个物理CPU都分配一个VMXON区域，注意这里是并不是VMCS
+          for_each_possible_cpu(cpu)
+            vmcs = alloc_vmcs_cpu()
+            per_cpu(vmxarea, cpu) = vmcs
+    kvm_arch_check_processor_compat
+    register_xxx_notifier
+    kvm_async_pf_init
+    misc_register
 ```
 
 ## 虚拟机的创建
@@ -65,11 +72,10 @@ kvm_init
 
 ```
 // vl.c
-            case QEMU_OPTION_enable_kvm:
-                /* 当命令行加入--enable-kvm时，解析会进入下面的代码 */
-                olist = qemu_find_opts("machine");
-                qemu_opts_parse_noisily(olist, "accel=kvm", false);
-                break;
+case QEMU_OPTION_enable_kvm:                   // 当命令行加入--enable-kvm时，解析会进入下面的代码
+  olist = qemu_find_opts("machine");
+  qemu_opts_parse_noisily(olist, "accel=kvm", false);
+  break;
 ```
 
 之后，`main`函数的调用链为：
