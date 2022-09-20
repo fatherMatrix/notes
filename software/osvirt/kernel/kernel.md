@@ -1,8 +1,10 @@
 # Linux Kernel
 
-[tty与进程关系](ttys_AND_task_relationship.md)
+[boot](boot.md)
 
-[audit system](audit.md)
+[tty](ttys_AND_task_relationship.md)
+
+[audit](audit.md)
 
 [vfs](vfs.md)
 
