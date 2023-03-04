@@ -18,7 +18,7 @@ main
   ...
   do_ssh2_kex                                                   // 交换Key
   do_authentication2                                            // 用户验证
-    ssh_dispatch_set(SERVICE_REQUEST, input_service_request)	// 设置回调函数
+    ssh_dispatch_set(SERVICE_REQUEST, input_service_request)    // 设置回调函数
     ssh_dispatch_run_fatal                                      // 事件循环
   ...
   do_authenticated                                              // 启动会话
@@ -74,7 +74,7 @@ main
       sshpkt_start(SERVICE_REQUEST)                             // 向用户发送验证服务请求
       sshpkt_put_cstring("ssh-userauth")
       sshpkt_send
-      sshpkt_dispatch_set(SERVICE_ACCEPT, input_userauth_service_accept)	// <B0>，对应sshd中的<A1> 
+      sshpkt_dispatch_set(SERVICE_ACCEPT, input_userauth_service_accept)    // <B0>，对应sshd中的<A1> 
   ...
 ```
 
@@ -97,6 +97,17 @@ input_userauth_service_accept
 
 ```
 input_userauth_failure
-  sshpkt_get_cstring(authlist)                                  // 获取remote传回的可选择认证方法列表
-  userauth(authlist)                                            // 调用authlist中指定的认证方法
+  sshpkt_get_cstring(authlist)        // 获取remote传回的可选择认证方法列表
+  userauth(authlist)                  // 调用authlist中指定的认证方法
+    method = authmethod_get(authlist)
+      authmethod_lookup(name)         // name是从authlist中挑选出来的，本函数在authmethods全局数组中查找
+    method->userauth()
 ```
+
+对密码验证方法来说，method->userauth指针指向userauth_password
+
+```c
+userauth_password
+```
+
+## privep

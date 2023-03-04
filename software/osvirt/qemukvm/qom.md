@@ -118,6 +118,7 @@ object_new
   object_new_with_type
     object_initialize_with_type
       object_init_with_type
+        ti->instance_init()        // ti是TypeImpl的指针
 ```
 
 ## 接口
