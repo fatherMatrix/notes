@@ -152,6 +152,8 @@ kvm_vm_ioctl_create_vcpu
         page = alloc_page
         vcpu->run = page_address(page)
         kvm_arch_vcpu_init
+          创建mmu
+          创建lapic
       alloc_loaded_vmcs(&vmx->vmcs01)           // 分配struct vcpu_vmx -> struct loaded_vmcs . *vmcs所指向的VMCS
       vmx->loaded_vmcs = &vmx->vmcs01
       vmx_vcpu_load
@@ -161,6 +163,7 @@ kvm_vm_ioctl_create_vcpu
     vcpu_load
     kvm_vcpu_reset
       ...
+      设置virtual-APIC page
       memset(vcpu->arch.regs, 0)                // 普通寄存器都被置为0了
   create_vcpu_fd
   kvm_arch_vcpu_postcreate
