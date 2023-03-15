@@ -180,7 +180,9 @@ kvm_set_msi
 |         |  0: do not deliver                                   |
 |         |  1: deliver                                          |
 +---------+------------------------------------------------------+
-| 20 ~ 12 | Reserved                                             |
+| 30 ~ 12 | Reserved                                             |
++---------+------------------------------------------------------+
+|   31    | Valid                                                |
 +---------+------------------------------------------------------+
 ```
 
@@ -189,16 +191,18 @@ kvm_set_msi
 ```c
 vcpu_enter_guest
   inject_pending_event
-    kvm_cpu_get_interrupt                        // 获取要注入的中断
+    kvm_cpu_get_interrupt                             // 获取要注入的中断
       获取PIC或者LAPIC的上pending的中断
-    kvm_queue_interrupt                          // 将需要注入的中断向量号写入到vcpu->arch.interrupt中
-    kvm_x86_ops->set_irq(vcpu)                   // intel上对应的是vmx_inject_irq
+    kvm_queue_interrupt                               // 将需要注入的中断向量号写入到vcpu->arch.interrupt中
+    kvm_x86_ops->set_irq(vcpu)                        // intel上对应的是vmx_inject_irq
       irq = vcpu->arch.interrupt.nr
       intr = irq | INTR_INFO_xxx | ... 
-      vmcs_write32(VM_ENTRY_INFO_FIELD, intr)    // 写入到vmcs中
+      vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, intr)    // 写入到vmcs中的VM_ENTRY_INFO_FILED字段中
+  if (开启了APICv)                                     // 这里对应于kvm_vcpu_trigger_posted_interrupt返回错误的情况（UP系统）
+    sync_pir_to_irr                                   // 对应vmx_sync_pir_to_irr，同步posted-interrupt desc中的PIR到VIRR
 ```
 
-## APICv虚拟化
+## 1.5. APICv虚拟化
 
 下面几个VM-Execution controls域是与APIC虚拟化和虚拟中断相关的：
 
@@ -222,18 +226,21 @@ vcpu_enter_guest
 |     virtual-APIC page address       |
 +-------------------------------------+
 |      APIC-access page address       |
-+-------------------------------------+
++------------------+------------------+
+|        Guest interrupt status       |
+|       RVI        |       SVI        |
++------------------+------------------+
 |                                     |
 |                                     |
 |                                     |
 +-------------------------------------+
 ```
 
-### 设置virtual-APIC page
+### 1.5.1. 设置virtual-APIC page
 
-### 设置APIC-access page
+### 1.5.2. 设置APIC-access page
 
-### 虚拟中断的分发
+### 1.5.3. 虚拟中断的分发
 
 APICv虚拟中断的前半部分依旧要走IOAPIC -> LAPIC的中断分发过程，只不过在APICv虚拟化场景下，虚拟中断到达LAPIC后，无需使得或等待vcpu退出，即可向vcpu发送中断。
 
@@ -245,9 +252,8 @@ kvm_irq_delivery_to_apic
   kvm_apic_set_irq
     __apic_accept_irq
     deliver_posted_interrupt/vmx_deliver_posted_interrupt      // 前面都是一样的，从这里开始不一样。普通的中断分发到这里走set_irr、make request、kick vcpu流程；
-      pi_test_and_set_pir                                      // 判断当前是否已经设置了该vector id，如果已经设置了，则直接返回；不会丢中断嘛？
-      r = pi_test_and_set_on
-      kvm_make_request
-      if (r || !kvm_vcpu_trigger_posted_interrupt)
-        kvm_vcpu_kick
+      pi_test_and_set_pir                                      // 设置PIR
+      pi_test_and_set_on                                       // 设置Outstanding bit
+      if (!kvm_vcpu_trigger_posted_interrupt)                  // 发送特定IPI中断：posted-interrupt notification vector
+        kvm_vcpu_kick                                          // 如果是UP系统，无法发送IPI中断，会走到这里；后续的中断注入交由vcpu_enter_guest负责
 ```
