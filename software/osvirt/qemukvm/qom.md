@@ -118,7 +118,7 @@ object_new
   object_new_with_type
     object_initialize_with_type
       object_init_with_type
-        ti->instance_init()        // ti是TypeImpl的指针
+        ti->instance_init()        // ti是TypeImpl的指针，先递归调用父亲的
 ```
 
 ## 接口

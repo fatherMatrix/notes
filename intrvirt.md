@@ -1,6 +1,59 @@
 # 1. 中断
 
-## 1.1. 中断初始化
+## 1.1. APIC
+
+```
+MP specification defines three different interrupt delivery modes as follows:
+
+ 1. PIC Mode
+ 2. Virtual Wire Mode
+ 3. Symmetric I/O Mode
+
+They will be setup in the different periods of booting time:
+ 1. *PIC Mode*, the default interrupt delivery modes, will be set first.
+ 2. *Virtual Wire Mode* will be setup during ISA IRQ initialization( step 1
+    in the figure.1).
+ 3. *Symmetric I/O Mode*'s setup is related to the system
+    3.1 In SMP-capable system, setup during prepares CPUs(step 2) 
+    3.2 In UP system, setup during initializes itself(step 3).
+
+
+ start_kernel
++---------------+
+|
++--> .......
+|
+|    setup_arch
++--> +-------+
+|
+|    init_IRQ
++-> +--+-----+
+|      |        init_ISA_irqs
+|      +------> +-+--------+
+|                 |         +----------------+
++--->             +------>  | 1.init_bsp_APIC|
+|     .......               +----------------+
++--->
+|     rest_init
++--->---+-----+
+|       |   kernel_init
+|       +> ----+-----+
+|              |   kernel_init_freeable
+|              +->  ----+-------------+
+|                       |     smp_prepare_cpus
+|                       +---> +----+---------+
+|                       |          |   +-------------------+
+|                       |          +-> |2.  apic_bsp_setup |
+|                       |              +-------------------+
+|                       |
+v                       |     smp_init
+                        +---> +---+----+
+                                  |    +-------------------+
+                                  +--> |3.  apic_bsp_setup |
+                                       +-------------------+
+```
+
+## 1.2. 中断初始化
 
 ```c
 start_kernel
@@ -8,8 +61,8 @@ start_kernel
   setup_arch
     acpi_boot_init                            // ACPI表相关，包括MADT表
       acpi_process_madt                       // 解析MADT表
-        acpi_parse_madt_lapic_entries         // 解析LAPIC
-        acpi_parse_madt_ioapic_entries        // 解析IOAPIC
+        acpi_parse_madt_lapic_entries         // 解析LAPIC，结束后我们知道了LAPIC的地址
+        acpi_parse_madt_ioapic_entries        // 解析IOAPIC，结束后我们知道了IOAPIC的相关信息，包括IOAPIC的地址以及中断源相关的信息（mp_irqs)
   trap_init                                   // 设置异常处理程序
   init_IRQ                                    // 设置中断处理程序
   late_time_init/x86_late_time_init
@@ -20,24 +73,54 @@ start_kernel
         setup_local_APIC
         enable_IO_APIC
         end_local_APIC_setup
-        setup_IO_APIC                         // 重中之重，配置中断重定向表
+        setup_IO_APIC                         // 重中之重，配置中断重定向表。根据mp_irqs配置好中断发生时向cpu发送的vector
 ```
 
-## 1.2. 中断控制器模拟
+## 1.3. 中断控制器模拟
 
-### 1.2.1. Qemu对中断控制器的模拟
+### 1.3.1. Qemu对中断控制器的模拟
 
-Qemu虚拟机的中断状态由GSIState结构体表示：
+Qemu虚拟机的中断状态由GSIState结构体表示，整体关系：
 
-```
-     +---------+
-     |  i8259  |
-     +---------+
-     | ioapic  |
-     +---------+
-     | ioapic2 |
-     +---------+
-       GSIState
+```c
++------------+  
+|            |  
++------------+  
+|     gsi    |----->+------------+                    
++------------+      |   gsi[0]   |                   
+|            |      +------------+                   
++------------+      |   gsi[1]   |----->+------------+
+PCMachineState      +------------+      | parent_obj |
+                    |    ...     |      +------------+
+                    +------------+      |   handler  |----->gsi_handler
+                    |   gsi[22]  |      +------------+
+                    +------------+      |   opaque   |--------->+---------+
+                    |   gsi[23]  |      +------------+  +-------|  i8259  |
+                    +------------+      |            |  |       +---------+      
+                       qemu_irq         +------------+  |   +---| ioapic  |
+                                           IRQState     |   |   +---------+
+                                                        |   |   | ioapic2 |
+                                +----------------+<-----+   |   +---------+
+                                | i8259a_irq[0]  |          |     GSIState
+                                +----------------+          |
+            +------------+<-----| i8259a_irq[1]  |          V
+            | parent_obj |      +----------------+          +----------------+
+            +------------+      |     ...        |          | ioapic_irq[0]  |
+        +---|   handler  |      +----------------+          +----------------+
+        |   +------------+      | i8259a_irq[14] |          | ioapic_irq[1]  |----->+------------+
+        |   |   opaque   |      +----------------+          +----------------+      | parent_obj |
+        |   +------------+      | i8259a_irq[15] |          |      ...       |      +------------+
+        |   |            |      +----------------+          +----------------+      |   handler  |---+
+        |   +------------+           qemu_irq               | ioapic_irq[22] |      +------------+   |
+        |      IRQState                                     +----------------+      |   opaque   |   |
+        |                                                   | ioapic_irq[23] |      +------------+   |
+        +---> qemu: pic_irq_request                         +----------------+      |            |   |
+        +---> kvm: kvm_pic_set_irq                                qemu_irq          +------------+   |
+        +---> ...                                                                      IRQState      |
+                                                                                                     |
+                                                                            qemu: ioapic_set_irq <---+
+                                                                         kvm: kvm_ioapic_set_irq <---+
+                                                                                             ... <---+
 ```
 
 ```c
@@ -45,10 +128,11 @@ pc_init1
   gsi_state = pc_gsi_create        // 创建QEMU层面的中断控制器，
                                    // 如果中断控制器是在内核中模拟，那这里会创建一个壳子，
                                    // 对中断控制器的操作由这个壳子调用ioctl转交给kvm处理
-  ioapic_init_gsi                  // 初始化QEMU层面的IOAPIC设备
+  pc_i8259a_create                 // 创建GSIState.i8259[]，指定了pic的handler
+  ioapic_init_gsi                  // 初始化QEMU层面的IOAPIC设备，指定了ioapic的handler
 ```
 
-### 1.2.2. kvm对中断控制器的模拟
+### 1.3.2. kvm对中断控制器的模拟
 
 ```c
 +-------------+
@@ -89,11 +173,11 @@ kvm_arch_vm_ioctl(KVM_CREATE_IRQCHIP)
   kvm_setup_default_irq_routing    // 设置中断路由表
 ```
 
-## 1.3. 中断触发
+## 1.4. 中断触发
 
-### 1.3.1. qemu
+### 1.4.1. qemu
 
-### 1.3.2. kvm
+### 1.4.2. kvm
 
 ```c
 kvm_vm_ioctl(KVM_IRQ_LINE_STATUS, KVM_IRQ_LINE)
@@ -111,10 +195,11 @@ kvm_set_pic_irq
     pic_lock
     __kvm_irq_line_status
     pic_set_irq1
-    pic_update_irq        // 设置kvm_pic.output成员为中断电平
+    pic_update_irq                        // 设置kvm_pic.output成员为中断电平
     pic_unlock
-      kvm_make_request    // 在对应的vcpu上挂上一个KVM_REQ_EVENT请求
-      kvm_vcpu_kick       // 唤醒vcpu，使其尽快接受注入的中断
+      如果guest处于APIC mode，直接返回
+      kvm_make_request                    // 在对应的vcpu上挂上一个KVM_REQ_EVENT请求，
+      kvm_vcpu_kick                       // 唤醒vcpu，使其尽快接受注入的中断
 ```
 
 对于IOAPIC芯片，其set函数是：
@@ -127,6 +212,7 @@ kvm_set_ioapic_irq
       先进行一些必要的检查
       ioapic_service                       // 进行确实的中断分发
         kvm_irq_delivery_to_apic           // 根据ioapic_service函数格式化出来的kvm_lapic_irq结构寻找LAPIC
+          如果guest处于pic mode，直接退出
           kvm_irq_delivery_to_apic_fast    // 尝试使用预存在kvm中的一个表来查找LAPIC
           kvm_apic_set_irq                 // 已经找到了LAPIC，将中断发送到该LAPIC
             __apic_accept_irq
@@ -147,7 +233,7 @@ kvm_set_msi
                               // 后续的处理见IOAPIC芯片
 ```
 
-## 1.4. 中断注入
+## 1.5. 中断注入
 
 下面这个数据结构与中断注入息息相关：
 
@@ -202,7 +288,7 @@ vcpu_enter_guest
     sync_pir_to_irr                                   // 对应vmx_sync_pir_to_irr，同步posted-interrupt desc中的PIR到VIRR
 ```
 
-## 1.5. APICv虚拟化
+## 1.6. APICv虚拟化
 
 下面几个VM-Execution controls域是与APIC虚拟化和虚拟中断相关的：
 
@@ -236,11 +322,11 @@ vcpu_enter_guest
 +-------------------------------------+
 ```
 
-### 1.5.1. 设置virtual-APIC page
+### 1.6.1. 设置virtual-APIC page
 
-### 1.5.2. 设置APIC-access page
+### 1.6.2. 设置APIC-access page
 
-### 1.5.3. 虚拟中断的分发
+### 1.6.3. 虚拟中断的分发
 
 APICv虚拟中断的前半部分依旧要走IOAPIC -> LAPIC的中断分发过程，只不过在APICv虚拟化场景下，虚拟中断到达LAPIC后，无需使得或等待vcpu退出，即可向vcpu发送中断。
 
