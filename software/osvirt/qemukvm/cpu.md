@@ -194,4 +194,5 @@ kvm_vcpu_ioctl
         ... ...
         kvm_x86_ops->run                                                // 对应vmx_vcpu_run()
           __vmx_vcpu_run                                                // 汇编开始，会调用vmentry。当返回时，即代表发生了VM_EXIT
+        kvm_x86_ops->handle_exit
 ```

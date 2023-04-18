@@ -36,10 +36,10 @@ They will be setup in the different periods of booting time:
 +--->
 |     rest_init
 +--->---+-----+
-|       |   kernel_init
+|       |  kernel_init
 |       +> ----+-----+
-|              |   kernel_init_freeable
-|              +->  ----+-------------+
+|              |    kernel_init_freeable
+|              +->  ----+--------------+
 |                       |     smp_prepare_cpus
 |                       +---> +----+---------+
 |                       |          |   +-------------------+
@@ -67,13 +67,16 @@ start_kernel
   init_IRQ                                    // 设置中断处理程序
   late_time_init/x86_late_time_init
     x86_init.irq.intr_mode_init/apic_intr_mode_init
+      default_setup_apic_routing
+        enable_IR_x2apic                      // -- skip_ioapic_setup
       apic_bsp_setup
         connect_bsp_APIC
         apic_bsp_up_setup
         setup_local_APIC
-        enable_IO_APIC
+        enable_IO_APIC                        // -- skip_ioapic_setup -> nr_ioapics = 0
         end_local_APIC_setup
-        setup_IO_APIC                         // 重中之重，配置中断重定向表。根据mp_irqs配置好中断发生时向cpu发送的vector
+        setup_IO_APIC                         // -- skip_ioapic_setup nr_ioapics
+                                              // 重中之重，配置中断重定向表。根据mp_irqs配置好中断发生时向cpu发送的vector
 ```
 
 ## 1.3. 中断控制器模拟
@@ -83,6 +86,7 @@ start_kernel
 Qemu虚拟机的中断状态由GSIState结构体表示，整体关系：
 
 ```c
+===========================================   pic + ioapic   =============================================
 +------------+  
 |            |  
 +------------+  
@@ -114,13 +118,15 @@ PCMachineState      +------------+      | parent_obj |
         |   +------------+           qemu_irq               | ioapic_irq[22] |      +------------+   |
         |      IRQState                                     +----------------+      |   opaque   |   |
         |                                                   | ioapic_irq[23] |      +------------+   |
-        +---> qemu: pic_irq_request                         +----------------+      |            |   |
+        +---> qemu: pic_set_irq -> pic_irq_request          +----------------+      |            |   |
         +---> kvm: kvm_pic_set_irq                                qemu_irq          +------------+   |
         +---> ...                                                                      IRQState      |
                                                                                                      |
                                                                             qemu: ioapic_set_irq <---+
                                                                          kvm: kvm_ioapic_set_irq <---+
                                                                                              ... <---+
+===========================================        msi        ============================================
+msi_notify
 ```
 
 ```c
@@ -152,18 +158,20 @@ pc_init1
                kvm_irq_routing_table   |                     |               
                                        |   +-----------+     |   +-----------+
                                        +-->|   link    |     +-->|   link    |
-     +-----------+                         +-----------+         +-----------+
-     |    gsi    |<----------------------->|    gsi    |         |    gsi    |
-     +-----------+                         +-----------+         +-----------+
-     |   type    |<----------------------->|   type    |         |   type    |
-     +-----------+                         +-----------+         +-----------+
-     |   flag    |                         |    set    |         |    set    |
-     +-----------+                         +-----------+         +-----------+
-     |    pad    |                         |  irqchip  |         |  irqchip  |
-     +-----------+                         +-----------+         +-----------+
-     |     u     |                            kvm_kernel_irq_routing_entry      
-     +-----------+                 
- kvm_irq_routing_entry
+       +-----------+                       +-----------+         +-----------+
+       |    gsi    |----------copy-------->|    gsi    |         |    gsi    |
+       +-----------+                       +-----------+         +-----------+
+       |   type    |<---------copy-------->|   type    |         |   type    |
+       +-----------+                       +-----------+         +-----------+
+       |   flag    |                       |    set    |         |    set    |--+
+       +-----------+                       +-----------+         +-----------+  |
+       |    pad    |                       |  irqchip  |         |  irqchip  |  |
+       +-----------+                       +-----------+         +-----------+  |
+       |     u     |                          kvm_kernel_irq_routing_entry      |
+       +-----------+                                                            |
+    kvm_irq_routing_entry                               pic: kvm_set_pic_irq <--+
+== from userspace by ioctl ==                     ioapic: kvm_set_ioapic_irq <--+
+                                                            msi: kvm_set_msi <--+
 ```
 
 ```c
@@ -343,3 +351,25 @@ kvm_irq_delivery_to_apic
       if (!kvm_vcpu_trigger_posted_interrupt)                  // 发送特定IPI中断：posted-interrupt notification vector
         kvm_vcpu_kick                                          // 如果是UP系统，无法发送IPI中断，会走到这里；后续的中断注入交由vcpu_enter_guest负责
 ```
+
+### 中断虚拟化总结
+
+#### 全部在kvm模拟
+
+|        | qemu               | kvm                | interface             |
+|--------|--------------------|--------------------|-----------------------|
+| pic    | kvm_pic_set_irq    | kvm_set_pic_irq    | ioctl(KVM_IRQ_LINE)   |
+| ioapic | kvm_ioapic_set_irq | kvm_set_ioapic_irq | ioctl(KVM_IRQ_LINE)   |
+| msi    | msi_notify         | kvm_set_msi        | ioctl(KVM_SIGNAL_MSI) |
+
+#### split模式
+
+|        | qemu            | kvm           | interface             |
+|--------|-----------------|---------------|-----------------------|
+| pic    | pic_irq_request | vmx_enter_cpu | ioctl(KVM_INTERRUPT)  |
+| ioapic | ioapic_set_irq  | kvm_set_msi   | ioctl(KVM_IRQ_LINE)   |
+| msi    |                 | kvm_set_msi   | ioctl(KVM_SIGNAL_MSI) |
+
+## 参考文献
+
+[https://www.binss.me/blog/qemu-note-of-interrupt/](https://www.binss.me/blog/qemu-note-of-interrupt/)

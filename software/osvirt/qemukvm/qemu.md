@@ -17,3 +17,13 @@ main
   qemu_main_loop                // 主事件循环
   qemu_cleanup
 ```
+
+```c
+x86_cpu_realizefn
+  qemu_init_vcpu
+    cpus_accel->create_vcpu_thread/kvm_start_vcpu_thread
+      qemu_create_thread(kvm_vcpu_thread_fn)
+
+kvm_vcpu_thread_fn
+  kvm_cpu_exec
+```

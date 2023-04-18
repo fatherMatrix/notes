@@ -60,6 +60,13 @@ userauth_passwd
   PRIVSEP(auth_password(ssh, password))
 ```
 
+对于冲击-响应验证方式：
+
+```
+userauth_kbdint
+  auth2_challenge
+```
+
 ## ssh
 
 ```
