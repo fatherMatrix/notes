@@ -52,6 +52,8 @@
 
 该部分代码在arch/x86/kernel/head_64.S；部分是在该汇编文件中硬编码，部分是在__startup_64函数中操作；
 
+其中，early_dynamic_pgts仅用作加载early_top_pgtable动作完成到jmp到高地址之前的短暂过渡，其实只有几个指令而已；进入到start_kernel之前，该部分页表会被清空；
+
 ```
                                          early_dynamic_pgts[0]                     early_dynamic_pgts[1]
                                   +----->+-----------------------+       +-------->+-------------------+       
@@ -102,3 +104,25 @@
                                                                                    |                   |
                                                                                    +-------------------+
 ```
+
+## 直接映射的建立
+
+代码在setup_arch中的init_mem_mapping，用于从虚拟地址空间的PAGE_OFFSET处直接映射所有的物理内存
+
+```
+```
+
+## 页表头文件树立
+
+```
+asm/pgalloc.h -> asm-generic/pgalloc.h
+```
+
+## 参考文献
+
+[内存初始化](https://zhuanlan.zhihu.com/p/613004422)
+
+[内存模型](http://www.wowotech.net/memory_management/memory_model.html)
+
+[Page Flags](https://zhuanlan.zhihu.com/p/590669353)
+

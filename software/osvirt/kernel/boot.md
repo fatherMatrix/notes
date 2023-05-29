@@ -3,6 +3,7 @@
 ## Linux Boot Protocal
 
 ```
+ 0x
               ~                        ~
               |                        | 
  1000000+offs |  Compressed kernel     |      Compressed kernel relocated here          # 5. 压缩内核搬到了这里，跳到这里来运行解压程序。
