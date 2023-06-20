@@ -27,7 +27,7 @@ apic_timer_interrupt
     enter_ack_irq
     local_apic_timer_interrupt
     existing_irq
-    set_irq_regs
+    set_irq_regs                    // 设置中断处理使用的pt_regs到per cpu的指针变量
 ```
 
 ## 参考文献

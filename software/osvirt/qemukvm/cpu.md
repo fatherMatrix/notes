@@ -143,7 +143,7 @@ QEMU能够模拟多种CPU模型，因此需要一套继承结构来表示CPU对�
 
 ### kvm侧vCPU的创建
 
-```
+```c
 kvm_vm_ioctl_create_vcpu
   kvm_arch_vcpu_create
     kvm_x86_ops->vcpu_create                    // 对应vmx_create_vcpu() 
@@ -175,7 +175,7 @@ kvm_vm_ioctl_create_vcpu
 
 ### kvm侧vCPU的运行
 
-```
+```c
 kvm_vcpu_ioctl
   kvm_arch_vcpu_ioctl_run
     vcpu_load

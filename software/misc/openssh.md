@@ -65,6 +65,11 @@ userauth_passwd
 ```
 userauth_kbdint
   auth2_challenge
+    kbdint_alloc                                                // 注意KbdintDevice *devices[]全局数组
+    auth2_challenge_start
+      kbdintctxt->device->init_ctx                              // sshpam_init_ctx
+        pthread_create(sshpam_thread)
+      send_userauth_info_request
 ```
 
 ## ssh
@@ -115,6 +120,16 @@ input_userauth_failure
 
 ```c
 userauth_password
+```
+
+对冲击-响应验证，method->userauth指针指向userauth_kbdint（这和sshd那边的处理函数是重名的）
+
+```c
+userauth_kbdint
+  ssh_dispatch_set(USERAUTH_INFO_REQUEST, input_userauth_info_req)
+
+input_userauth_info_req
+  
 ```
 
 ## privep

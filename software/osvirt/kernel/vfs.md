@@ -2,7 +2,7 @@
 
 ## inode
 
-```
+```c
 #define S_IFMT  00170000                                // 共18位，2进制为001 111 000 000 000 000
 #define S_IFSOCK 0140000                                // Socket
 #define S_IFLNK  0120000                                // 符号链接
@@ -41,7 +41,7 @@
 
 ## open
 
-```
+```c
 open
   do_sys_open(AT_FDCWD, filename, flags, mode)          // flags是O_*，mode是S_*
     build_open_flags(flags, mode, &op)                  // op是open_flags，其中包括open_flag和lookup_flag
@@ -73,7 +73,7 @@ open
 
 ## close
 
-```
+```c
 close
   __close_fd(current->files, fd)
     spin_lock(&files->file_lock)
@@ -107,7 +107,7 @@ ____fput
 
 ## unlink
 
-```
+```c
 unlink
   do_unlinkat
     vfs_unlink
@@ -132,7 +132,7 @@ unlink
 
 ## mount
 
-```
+```c
 mount
   ksys_mount(dev_name, dir_name, type, flags, data)     // dev_name是挂载设备文件路径，dir_name是挂载目录，type是文件系统名称，flags是标识，data是各种挂载选项
     do_mount
@@ -148,4 +148,56 @@ mount
         vfs_get_tree                                    // 调用fs_context->ops->get_tree()来设置fc->root(struct dentry)，找到了dentry，其实就是找到了superblock(dentry->d_sb == superblock)
         do_new_mount_fc                                 // 进行真正的mount操作，设置mount结构体等的父子层次关系
       path_put() 
+```
+
+## chown/fchownat/chmod/fchmodat
+
+```c
+__sys_chown/__sys_fchownat
+  do_fchmodat
+    user_path_at
+    chmod_common
+      notify_change
+        ext4_setattr/xfs_vn_setattr
+          setattr_prepare
+```
+
+## setfacl/setfattr
+
+设置acl和拓展属性都是通过setxattr()系统调用完成的：
+
+```c
+__sys_setxattr
+  path_setxattr
+    user_path_at
+      user_path_at_empty
+        filename_lookup
+          path_lookupat
+            path_init
+            link_path_walk
+              may_lookup
+                inode_permission
+                  sb_permission
+                  do_inode_permission
+                    acl_permission_check
+                    capable_wrt_inode_uidgid(CAP_DAC_READ_SEARCH)
+                    capable_wrt_inode_uidgid(CAP_DAC_OVERRIDE)
+                  devcgroup_inode_permission
+                  security_inode_permission
+            trailing_symlink
+            lookup_last
+    setxattr
+      cap_convert_nscap                 // security.capability 要求有CAP_SETFCAP
+      vfs_setxattr
+        inode_lock
+        __vfs_setxattr_locked
+          xattr_permission
+            security./system. 两个不受限制
+            trusted. 需要CAP_SYS_ADMIN
+            inode_permission
+          security_inode_setxattr
+            cap_inode_setxattr          // security. 要求有CAP_SYS_ADMIN  (除security.capability)
+          __vfs_setxattr_noperm
+            __vfs_setxattr              // 要注意，对于setfattr中的ext4_xattr_handler_map，要求inode_owner_or_capable!!!
+        inode_unlock
 ```
