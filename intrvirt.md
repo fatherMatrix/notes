@@ -135,6 +135,13 @@ pc_init1
                                    // 如果中断控制器是在内核中模拟，那这里会创建一个壳子，
                                    // 对中断控制器的操作由这个壳子调用ioctl转交给kvm处理
   pc_i8259a_create                 // 创建GSIState.i8259[]，指定了pic的handler
+    kvm_i8259_init                    // 如果是kvm模拟
+    i8259a_init                       // 如果是qemu模拟
+      i8259_init_chip
+        isa_realize_and_unref
+          qdev_realize_and_unref
+            => pic_realize
+      qdev_connect_gpio_out
   ioapic_init_gsi                  // 初始化QEMU层面的IOAPIC设备，指定了ioapic的handler
 ```
 
@@ -185,6 +192,15 @@ kvm_arch_vm_ioctl(KVM_CREATE_IRQCHIP)
 
 ### 1.4.1. qemu
 
+```c
+kvm_vcpu_thread_fn
+  kvm_cpu_exec - loop
+    kvm_arch_pre_run
+    kvm_vcpu_ioctl(KVM_RUN)
+    kvm_arch_post_run
+  
+```
+
 ### 1.4.2. kvm
 
 ```c
@@ -205,6 +221,7 @@ kvm_set_pic_irq
     pic_set_irq1
     pic_update_irq                        // 设置kvm_pic.output成员为中断电平
     pic_unlock
+      spin_unlock(s->lock)                // 这里就解锁了，要注意pic只会在单核情况下使用
       如果guest处于APIC mode，直接返回
       kvm_make_request                    // 在对应的vcpu上挂上一个KVM_REQ_EVENT请求，
       kvm_vcpu_kick                       // 唤醒vcpu，使其尽快接受注入的中断
@@ -215,6 +232,7 @@ kvm_set_pic_irq
 ```c
 kvm_set_ioapic_irq
   kvm_ioapic_set_irq
+    spin_lock(ioapic->lock)
     __kvm_irq_line_status
     ioapic_set_irq
       先进行一些必要的检查
@@ -230,6 +248,7 @@ kvm_set_ioapic_irq
                 apic_set_irr
                 kvm_make_request
                 kvm_vcpu_kick
+    spin_unlock(ioapic->lock)
 ```
 
 对于MSI中断，其会绕过IOAPIC，直接由设备将中断信息通过总线发送到LAPIC上：
@@ -281,6 +300,20 @@ kvm_set_msi
 ```
 
 注入过程如下：
+
+```c
+kvm_vcpu_ioctl
+  kvm_arch_vcpu_ioctl_run
+    vcpu_load
+    kvm_sigset_activate
+    如果kvm_run->immediate_exit非0，返回-EINTR
+    vcpu_run - loop
+      vcpu_enter_guest
+    post_kvm_run_save
+      ...
+      ready_for_interrupt_injection=xxx               // 用户态在注入中断前应检查这个字段，该字段为0时不可注入中断
+    kvm_sigset_deactivate
+```
 
 ```c
 vcpu_enter_guest
@@ -352,9 +385,9 @@ kvm_irq_delivery_to_apic
         kvm_vcpu_kick                                          // 如果是UP系统，无法发送IPI中断，会走到这里；后续的中断注入交由vcpu_enter_guest负责
 ```
 
-### 中断虚拟化总结
+### 1.6.4. 中断虚拟化总结
 
-#### 全部在kvm模拟
+#### 1.6.4.1. 全部在kvm模拟
 
 |        | qemu               | kvm                | interface             |
 |--------|--------------------|--------------------|-----------------------|
@@ -362,7 +395,7 @@ kvm_irq_delivery_to_apic
 | ioapic | kvm_ioapic_set_irq | kvm_set_ioapic_irq | ioctl(KVM_IRQ_LINE)   |
 | msi    | msi_notify         | kvm_set_msi        | ioctl(KVM_SIGNAL_MSI) |
 
-#### split模式
+#### 1.6.4.2. split模式
 
 |        | qemu            | kvm           | interface             |
 |--------|-----------------|---------------|-----------------------|
@@ -370,6 +403,12 @@ kvm_irq_delivery_to_apic
 | ioapic | ioapic_set_irq  | kvm_set_msi   | ioctl(KVM_IRQ_LINE)   |
 | msi    |                 | kvm_set_msi   | ioctl(KVM_SIGNAL_MSI) |
 
-## 参考文献
+qemu中的数据结构：
+
+|        | TypeInfo   | Class    | Instance       |
+|--------|------------|----------|----------------|
+| pic    | i8259_info | PICClass | PICCommonState |
+
+## 1.7. 参考文献
 
 [https://www.binss.me/blog/qemu-note-of-interrupt/](https://www.binss.me/blog/qemu-note-of-interrupt/)

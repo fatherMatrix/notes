@@ -1,10 +1,10 @@
-# Qemu对象模型(QOM)
+# 1. Qemu对象模型(QOM)
 
 `QOM`全称`Qemu Object Model`，是qemu用来进行面向对象编程的基础。`QOM`使用C语言的模拟了C++的面向对象机制，主要是继承和多态。需要注意的是，`QOM`的面向对象机制实现并不高效，甚至处处体现着极致的低效，并不适合作为C语言下通用的面向对象机制使用。但其针对qemu设计，符合qemu设备模拟的诸多特点。
 
 题外话，面向对象机制其实并不是C与C++二者的核心差异，C++中面向对象的整个机制都可以使用C语言极其高效地实现，不存在性能损失，甚至可能略有上升。因为C++面向对象机制的核心是vptr，linux内核中的面向对象机制可以看做一个较为高效的实现。C++相对于C真正的提高是Template，这一点是C编译器没有支持的。
 
-## 主要数据结构
+## 1.1. 主要数据结构
 
 ```
 +--------------------------------------------------------------------------------------------------+
@@ -52,11 +52,11 @@
   
   - `properties`：指向一个哈希表，存储了此对象特有的属性
 
-## 类型注册
+## 1.2. 类型注册
 
 类型注册是向`QOM`声明一个类型的过程，以`edu`设备类型为例，其注册分为如下几步。
 
-### type_init
+### 1.2.1. type_init
 
 首先，程序员需要通过`type_init()`将一个包含`static`类型`TypeInfo`的函数（例如函数)插入`init_type_list[MODULE_INIT_QOM]`全局链表中，该链表类型声明代码见[init_type_list](qemu_source.md#__source_about_init_type_list)。`type_init()`内部使用`__attribute__((constructor))`，使得函数插入链表动作在main函数开始之前执行。相关代码见[pci_edu_register_types()与type_init()](qemu_source.md#__source_func_pci_edu_register_types_AND_type_init)。
 
@@ -97,9 +97,9 @@ do_qemu_init_ ## pci_edu_register_types       /* 函数大概调用流程
 
 值得注意的是，到此为止，我们并没有将具体的类型注册到`QOM`中，仅仅是注册了去注册具体类型的函数，当这个函数被调用后，才是将具体的类型注册到了`QOM`中。
 
-### module_call_init()
+### 1.2.2. module_call_init()
 
-## 类型初始化
+## 1.3. 类型初始化
 
 ```
 type_initialize
@@ -111,7 +111,7 @@ type_initialize
   ti->class_init()
 ```
 
-## 对象初始化
+## 1.4. 对象初始化
 
 ```
 object_new
@@ -121,25 +121,25 @@ object_new
         ti->instance_init()        // ti是TypeImpl的指针，先递归调用父亲的
 ```
 
-## 接口
+## 1.5. 接口
 
-## 属性
+## 1.6. 属性
 
 类属性存在于ObjectClass的properties域中，这个域是在类型初始化函数type_initialize()中构造的。对象属性存在与Object的properties域中，这个域是在对象的初始化函数object_initialize_with_type()中构造的。两者皆为一个哈希表，存着属性名字到ObjectProperty的映射。
 
 ObjectProperty的定义如下：
 
-```
+```c
 typedef struct ObjectProperty
 {
-    gchar *name;
-    gchar *type;
+    gchar *name;                        // 属性名
+    gchar *type;                        // 属性类型：bool/string/link等
     gchar *description;
     ObjectPropertyAccessor *get;
     ObjectPropertyAccessor *set;
     ObjectPropertyResolve *resolve;
     ObjectPropertyRelease *release;
-    void *opaque;
+    void *opaque;                       // 指向具体的属性结构体
 } ObjectProperty;
 
 
@@ -166,3 +166,37 @@ Object / ObjectClass
                                                     +-> | BoolProperty / StringProperty / LinkProperty |
                                                         +----------------------------------------------+
 ```
+
+### 1.6.1. 对象属性
+
+对象属性添加
+
+```c
+object_property_add
+```
+
+对象属性查找
+
+```c
+object_property_find
+```
+
+## 1.7. Cast
+
+QEMU使用一个复杂的宏`OBJECT_DECLARE_TYPE()`定义了`Object`与其派生物之间、`ObjectClass`与其派生物之间、`Object`到对应`ObjectClass`的转换宏。
+
+举个例子：
+
+```c
+OBJECT_DECLARE_TYPE(X86CPU, X86CPUClass, X86_CPU)
+```
+
+将会生成下面三个--函数--：
+
+- `X86_CPU()`: 将任何一个`object 指针`转换为`X86CPU`
+- `X86_CPU_GET_CLASS()`: 根据`object 指针`获取到`X86CPUClass`
+- `X86_CPU_CLASS()`: 根据`ObjectClass 指针`获取到`X86CPUClass`
+
+## 1.8. 参考文献
+
+- https://www.owalle.com/2018/12/26/qemu-qom/
