@@ -65,7 +65,7 @@ open
               alloc_inode
           may_open                                      // 检查权限
             inode_permission                            // 对inode中保存的权限进行检查，包括UGO和ACL
-          vfs_open
+          vfs_open                                      // 对于块设备文件，这里是blkdev_open()，其中会讲file->f_mapping设置为block_device的address_space
         terminate_walk(nd)
       restore_nameidata
     fd_install
@@ -194,10 +194,11 @@ __sys_setxattr
           xattr_permission
             security./system. 两个不受限制
             trusted. 需要CAP_SYS_ADMIN
-            inode_permission
+            inode_permisskkkkion
           security_inode_setxattr
             cap_inode_setxattr          // security. 要求有CAP_SYS_ADMIN  (除security.capability)
           __vfs_setxattr_noperm
-            __vfs_setxattr              // 要注意，对于setfattr中的ext4_xattr_handler_map，要求inode_owner_or_capable!!!
+            __vfs_setxattr              // 要注意，对于setfattr中的ext4_xattr_handler_map，EXT4_XATTR_INDEX_POSIX_ACL_ACCESS，要求inode_owner_or_capable!!!
+                                        // security. 不做特别检查，因为前面已经检查过了
         inode_unlock
 ```

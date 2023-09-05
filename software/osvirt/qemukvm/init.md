@@ -63,6 +63,14 @@ main
             pc_i8259_create                         // 创建8259芯片
             ...
   qemu_main_loop                                    // 主事件循环
+    os_host_main_loop_wait
+      glib_pollfds_fill                             // prepare 和 query
+        g_main_context_prepare
+        g_main_context_query
+      qemu_mutex_lock_iothread
+      qemu_poll_ns                                  // poll
+      qemu_mutex_unlock_iothread
+      glib_pollfds_poll                             // check 和 dispatch
   qemu_cleanup
 ```
 
