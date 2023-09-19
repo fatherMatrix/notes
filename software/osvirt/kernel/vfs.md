@@ -65,7 +65,7 @@ open
               alloc_inode
           may_open                                      // 检查权限
             inode_permission                            // 对inode中保存的权限进行检查，包括UGO和ACL
-          vfs_open                                      // 对于块设备文件，这里是blkdev_open()，其中会讲file->f_mapping设置为block_device的address_space
+          vfs_open                                      // 对于块设备文件，这里是blkdev_open()，其中会将file->f_mapping设置为block_device的address_space
         terminate_walk(nd)
       restore_nameidata
     fd_install

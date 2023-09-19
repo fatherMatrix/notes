@@ -2,8 +2,25 @@
 
 ## 日志外存布局
 
-```
+- journal: 由一系列log records组成。
+- log record：对应一个in-core log buffer，最大256KiB。每个log record有一个log sequence number。每个log record包含一个完整的transaction或部分transaction。
+- transaction：由一系列log operation headers以及对应的log items组成。事务中的第一个op建立事务号，最后一个op是一个commit record。
 
+### log record
+
+一个log record在磁盘上以xlog_rec_header开始。
+
+### log operations
+
+一个log operations由一个xlog_op_header头，以及对应的数据区域组成。
+
+### log item
+
+log item是一个xlog_op_header后紧跟的数据区域。每一个log item必须以xfs_log_item作为头。
+
+
+```
+<oph><trans-hdr><start-oph><reg1-oph><reg1><reg2-oph>...<commit-oph>
 ```
 
 ## 数据结构
@@ -78,8 +95,8 @@ xfs_log_item
 事务整体流程：
 
 ```
-xfs_trans_alloc                 // 分配一个事务
-xfs_trans_ijoin                 // 关联inode节点，此处是以xfs_fs_dirty_inode()为例 
+xfs_trans_alloc                 // 分配一个事务，并做资源预留
+xfs_trans_ijoin                 // 关联inode节点到xfs_trans，此处是以xfs_fs_dirty_inode()为例
   xfs_trans_add_item
 xfs_trans_log_xxx
 xfs_trans_commit                // 事务提交
@@ -89,7 +106,18 @@ xfs_trans_commit                // 事务提交
 
 ```
 xfs_trans_alloc
-  tp = kmem_zone_zalloc         // 分配xfs_trans结构体，内部清零
+  tp = kmem_zone_zalloc                                       // 分配xfs_trans结构体，内部清零
   初始化tp
-  xfs_trans_reserve             // 预留事务所需空间 
+  xfs_trans_reserve                                           // 预留事务所需空间
+    current_set_flags_nested(PF_MEMALLOC_NOFS)
+    xfs_mod_fdblocks
+    xfs_log_reserve
+      xlog_ticket_alloc
+        kmem_zone_zalloc
+        xfs_log_calc_unit_res                                 // 计算log要保留的字节
+      xlog_grant_push_ail
+      xlog_grant_head_check
+      xlog_grant_add_space
+      xlog_verify_grant_tail
+    xfs_mod_frextents
 ```
