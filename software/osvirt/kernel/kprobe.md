@@ -57,6 +57,86 @@ do_debug
   ...
 ```
 
+## kprobe stacktrace trace_options
+
+kprobe打点时，可以使用echo stacktrace >> trace_options来使其显示对应堆栈。
+
+但5.4内核中，打点函数的调用者的栈不显示。
+
+```
+----------------------------------- kprobe -------------------------------
+
+     barad_agent-2896882 [001] .... 963476.030174: start_this_handle: (start_this_handle+0x0/0x480)
+     barad_agent-2896882 [001] .... 963476.030175: <stack trace>
+ => start_this_handle
+                                          => 这里缺少了jbd2__journal_start
+ => __ext4_journal_start_sb
+ => ext4_da_write_begin
+ => generic_perform_write
+ => __generic_file_write_iter
+ => ext4_file_write_iter
+ => new_sync_write
+ => __vfs_write
+ => vfs_write
+ => ksys_write
+ => __x64_sys_write
+ => do_syscall_64
+ => entry_SYSCALL_64_after_hwframe
+     barad_agent-9479    [001] .... 963476.309002: jbd2__journal_start: (jbd2__journal_start+0x0/0x1e0)
+     barad_agent-9479    [001] .... 963476.309006: <stack trace>
+ => jbd2__journal_start
+                                          => 这里缺少了__ext4_journal_start_sb
+ => ext4_dirty_inode
+ => __mark_inode_dirty
+ => generic_update_time
+ => file_update_time
+ => __generic_file_write_iter
+ => ext4_file_write_iter
+ => new_sync_write
+ => __vfs_write
+ => vfs_write
+ => ksys_write
+ => __x64_sys_write
+ => do_syscall_64
+ => entry_SYSCALL_64_after_hwframe
+
+-------------------------------------- ret kprobe ------------------------------
+
+         sap1002-7937    [004] d... 964000.125591: r_start_this_handle: (jbd2__journal_start+0xdb/0x1e0 <- start_this_handle)
+         sap1002-7937    [004] d... 964000.125595: <stack trace>
+ => [unknown/kretprobe'd]
+ => [unknown/kretprobe'd]
+ => ext4_dirty_inode
+ => __mark_inode_dirty
+ => generic_update_time
+ => file_update_time
+ => __generic_file_write_iter
+ => ext4_file_write_iter
+ => new_sync_write
+ => __vfs_write
+ => vfs_write
+ => ksys_write
+ => __ia32_sys_write
+ => do_int80_syscall_32
+ => entry_INT80_compat
+         sap1002-7937    [004] d... 964000.125597: r_jbd2__journal_start: (__ext4_journal_start_sb+0x6a/0x120 <- jbd2__journal_start)
+         sap1002-7937    [004] d... 964000.125597: <stack trace>
+ => [unknown/kretprobe'd]
+ => ext4_dirty_inode
+ => __mark_inode_dirty
+ => generic_update_time
+ => file_update_time
+ => __generic_file_write_iter
+ => ext4_file_write_iter
+ => new_sync_write
+ => __vfs_write
+ => vfs_write
+ => ksys_write
+ => __ia32_sys_write
+ => do_int80_syscall_32
+ => entry_INT80_compat
+```
+
 ## 参考文献
 
 1. [https://zhuanlan.zhihu.com/p/455694175](https://zhuanlan.zhihu.com/p/455694175)

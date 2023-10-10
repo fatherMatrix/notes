@@ -65,7 +65,9 @@ start_kernel
         acpi_parse_madt_ioapic_entries        // 解析IOAPIC，结束后我们知道了IOAPIC的相关信息，包括IOAPIC的地址以及中断源相关的信息（mp_irqs)
   trap_init                                   // 设置异常处理程序
   init_IRQ                                    // 设置中断处理程序
+  local_irq_enable                            // 这里开始就开中断了
   late_time_init/x86_late_time_init
+    x86_init.timers.timer_init/hpet_time_init // 会决定时钟事件源用谁：hpet/pit
     x86_init.irq.intr_mode_init/apic_intr_mode_init
       default_setup_apic_routing
         enable_IR_x2apic                      // -- skip_ioapic_setup
@@ -77,6 +79,20 @@ start_kernel
         end_local_APIC_setup
         setup_IO_APIC                         // -- skip_ioapic_setup nr_ioapics
                                               // 重中之重，配置中断重定向表。根据mp_irqs配置好中断发生时向cpu发送的vector
+  arch_call_rest_init
+    rest_init                                 // 对x86_64来说，arch_call_rest_init()直接调用rest_init()
+      kernel_thread -> kernel_init
+
+kernel_init
+  kernel_init_freeable
+    smp_prepare_cpus
+      smp_ops.smp_prepare_cpus/native_smp_prepare_cpus
+        x86_init.timers.setup_percpu_clockdev/setup_boot_APIC_clock
+          setup_APIC_timer                    // 设置bsp的lapic timer
+
+            
+
+      
 ```
 
 ## 1.3. 中断控制器模拟
