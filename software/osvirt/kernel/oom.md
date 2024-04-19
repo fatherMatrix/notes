@@ -9,7 +9,7 @@ out_of_memory
     __oom_kill_process
       do_send_sig_info
       mark_oom_victim
-      
+
 ```
 
 ## reaper线程

@@ -15,10 +15,20 @@ on_each_cpu
   func                              // 在本地cpu上执行func
   local_irq_restore
   preempt_enable
+
+smp_call_function_many
+  
 ```
 
 ## smp_call_function的处理
 
-```c
+其他cpu上的对smp_call_function()要求执行的函数是在ipi中断处理中：
 
+```c
+smp_call_function_interrupt
+  ipi_entering_ack_irq
+  inc_irq_stat
+  generic_smp_call_function_interrupt/generic_smp_call_function_single_interrupt
+    flush_smp_call_function_queue
+  exiting_irq
 ```

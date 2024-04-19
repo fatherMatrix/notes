@@ -52,7 +52,7 @@
 
 该部分代码在arch/x86/kernel/head_64.S；部分是在该汇编文件中硬编码(即和指令混在一起，直接存在于二进制中)，部分是在__startup_64函数中操作；
 
-其中，early_dynamic_pgts仅用作加载early_top_pgtable动作完成到jmp到高地址之前的短暂过渡，其实只有几个指令而已；进入到start_kernel之前，该部分页表会被清空；
+其中，early_dynamic_pgts是一个恒等映射（物理地址和虚拟地址相等），仅用作加载early_top_pgtable动作完成到jmp到高地址之前的短暂过渡，其实只有几个指令而已；进入到start_kernel之前，该部分页表会被清空；
 
 ```
                                          early_dynamic_pgts[0]                     early_dynamic_pgts[1]
@@ -60,7 +60,7 @@
                                   |      | early_dynamic_pgts[1] |-------+         |                   |     
                                   |      +-----------------------+       |         |                   |     
                                   |      | early_dynamic_pgts[1] |-------+         +-------------------+       
-    early_top_pgtable             |      +-----------------------+                 | 16MB              |  _text here
+    early_top_pgt                 |      +-----------------------+                 | 16MB              |  _text here
     +-----------------------+     |      |                       |                 +-------------------+
   0 | early_dynamic_pgts[0] |-----+      |                       |                 | 16MB + 2MB        |        
     +-----------------------+     |      |                       |                 +-------------------+
@@ -110,6 +110,17 @@
 ```
 
 ## 直接映射的建立
+
+kernel image映射的复制：
+
+```c
+x86_64_start_kernel
+  reset_early_page_table
+    memset(early_top_pgt, 0, sizeof(pgd_t) * (PTRS_PER_PGD - 1))      // 这里留下了第511项
+    next_early_pgt = 0
+    write_cr3(__sme_pa_nodebug(early_top_pgt))                        // 这里对cr3的写应该是为了flush tlb和page entry cache
+  init_top_pgt[511] = early_top_pgt[511]                              // 复制第511项的指针
+```
 
 代码在setup_arch中的init_mem_mapping，用于从虚拟地址空间的PAGE_OFFSET处直接映射所有的物理内存
 

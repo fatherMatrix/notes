@@ -59,10 +59,13 @@ v                       |     smp_init
 start_kernel
   local_irq_disable
   setup_arch
+    parse_early_param
+      | early_param(noapic)                   // noapic参数会导致全局变量skip_ioapic_setup=1
     acpi_boot_init                            // ACPI表相关，包括MADT表
       acpi_process_madt                       // 解析MADT表
         acpi_parse_madt_lapic_entries         // 解析LAPIC，结束后我们知道了LAPIC的地址
         acpi_parse_madt_ioapic_entries        // 解析IOAPIC，结束后我们知道了IOAPIC的相关信息，包括IOAPIC的地址以及中断源相关的信息（mp_irqs)
+                                              // -- skip_ioapic_setup为1时会跳过
   trap_init                                   // 设置异常处理程序
   init_IRQ                                    // 设置中断处理程序
   local_irq_enable                            // 这里开始就开中断了
@@ -70,15 +73,15 @@ start_kernel
     x86_init.timers.timer_init/hpet_time_init // 会决定时钟事件源用谁：hpet/pit
     x86_init.irq.intr_mode_init/apic_intr_mode_init
       default_setup_apic_routing
-        enable_IR_x2apic                      // -- skip_ioapic_setup
+        enable_IR_x2apic                      // -- skip_ioapic_setup全局变量为1时直接跳过
       apic_bsp_setup
         connect_bsp_APIC
         apic_bsp_up_setup
         setup_local_APIC
-        enable_IO_APIC                        // -- skip_ioapic_setup -> nr_ioapics = 0
+        enable_IO_APIC                        // -- skip_ioapic_setup为1时会跳过，并设置nr_ioapics = 0
         end_local_APIC_setup
-        setup_IO_APIC                         // -- skip_ioapic_setup nr_ioapics
-                                              // 重中之重，配置中断重定向表。根据mp_irqs配置好中断发生时向cpu发送的vector
+        setup_IO_APIC                         // -- skip_ioapic_setup为1或nr_ioapics为0时会跳过
+                                              // 配置中断重定向表。根据mp_irqs配置好中断发生时向cpu发送的vector
   arch_call_rest_init
     rest_init                                 // 对x86_64来说，arch_call_rest_init()直接调用rest_init()
       kernel_thread -> kernel_init
@@ -88,6 +91,7 @@ kernel_init
     smp_prepare_cpus
       smp_ops.smp_prepare_cpus/native_smp_prepare_cpus
         x86_init.timers.setup_percpu_clockdev/setup_boot_APIC_clock
+          
           setup_APIC_timer                    // 设置bsp的lapic timer
 
             

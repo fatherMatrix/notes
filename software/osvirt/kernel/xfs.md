@@ -78,10 +78,56 @@ xfs_log_item
 | file | xfs_file_operations     | xfs_inode_operations     |
 | dir  | xfs_dir_file_operations | xfs_dir_inode_operations |
 
-### write
+### write_iter
+
+#### dio
 
 ```c
+xfs_file_write_iter
+  xfs_file_dio_aio_write
+    xfs_ilock
+    iomap_dio_rw
+      build iomap_dio                               // iomap_dio描述一个direct io的整体信息
+      filemap_write_and_wait_range                  // 将direct io覆盖范围内的page cache先全部写到磁盘上去
+      blk_start_plug
+      iomap_apply(xfs_iomap_ops, iomap_dio_actor)   // 各种iomap的回调函数
+        xfs_iomap_ops->iomap_begin(&iomap)          // 查文件偏移与磁盘偏移的映射；对扩大写保留磁盘空间；对应xfs_file_iomap_begin()
+          xfs_bmapi_read
+          xfs_reflink_allocate_cow                  // -- 对于cow inode，分配cow fork中的空间
+            xfs_bmapi_write(XFS_BMAPI_COWFORK)
+          xfs_iomap_write_direct
+            xfs_trans_alloc
+            xfs_trans_ijoin
+            xfs_bmapi_write
+              xfs_bmapi_allocate
+                xfs_bmap_alloc
+                  xfs_bmap_rtalloc                  // 对于realtime设备
+                  xfs_bmap_btalloc                  // 对于btree
+                    xfs_alloc_vextent
+                xfs_bmap_add_extent_delay_real
+                xfs_bmap_add_extent_hole_real
+              xfs_bmapi_convert_unwritten
+                xfs_bmap_add_extent_unwritten_real
+              xfs_bmapi_update_map
+              xfs_bmap_btree_to_extents
+            xfs_trans_commit
+        iomap_dio_actor(&iomap)                     // 创建bio；通过submit_bio()提交数据到块层
+        xfs_iomap_ops->iomap_end(&iomap)            // 对缩小写进行磁盘空间清理
+      blk_finish_plug
+      iomap_dio_complete
+    xfs_iunlock
+```
 
+#### buffer io
+
+```c
+xfs_file_write_iter
+  xfs_file_buffered_aio_write
+    xfs_ilock
+    xfs_file_aio_write_checks
+    iomap_file_buffered_write
+      iomap_apply(iomap_write_actor)
+    xfs_iunlock
 ```
 
 ### write_inode_now
@@ -94,7 +140,7 @@ xfs_log_item
 
 事务整体流程：
 
-```
+```c
 xfs_trans_alloc                 // 分配一个事务，并做资源预留
 xfs_trans_ijoin                 // 关联inode节点到xfs_trans，此处是以xfs_fs_dirty_inode()为例
   xfs_trans_add_item
@@ -104,7 +150,7 @@ xfs_trans_commit                // 事务提交
 
 ### xfs_tran_alloc()
 
-```
+```c
 xfs_trans_alloc
   tp = kmem_zone_zalloc                                       // 分配xfs_trans结构体，内部清零
   初始化tp

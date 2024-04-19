@@ -10,7 +10,7 @@
 #define S_IFBLK  0060000                                // 块设备文件
 #define S_IFDIR  0040000                                // 目录
 #define S_IFCHR  0020000                                // 字符设备文件
-#define S_IFIFO  0010000                                // fifo
+#define S_IFIFO  0010000                                // fifoå
 #define S_ISUID  0004000                                // set uid
 #define S_ISGID  0002000                                // set gid
 #define S_ISVTX  0001000                                // sticky位
@@ -192,11 +192,14 @@ __sys_setxattr
         inode_lock
         __vfs_setxattr_locked
           xattr_permission
-            security./system. 两个不受限制
+            security./system. 两个不受限制  // ACL: system.posix_acl_access
             trusted. 需要CAP_SYS_ADMIN
             inode_permisskkkkion
           security_inode_setxattr
             cap_inode_setxattr          // security. 要求有CAP_SYS_ADMIN  (除security.capability)
+              ns_capable(CAP_SYS_ADMIN)
+                ns_capable_common
+                  security_capable      // selinux_capable
           __vfs_setxattr_noperm
             __vfs_setxattr              // 要注意，对于setfattr中的ext4_xattr_handler_map，EXT4_XATTR_INDEX_POSIX_ACL_ACCESS，要求inode_owner_or_capable!!!
                                         // security. 不做特别检查，因为前面已经检查过了
