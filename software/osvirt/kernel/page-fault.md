@@ -76,6 +76,4 @@ handle_ept_violation
   exit_qualification = vmcs_readl(EXIT_QUALIFICATION)
   vcpu->arch.exit_qualification = exit_qualification
   kvm_mmu_page_fault
-    
 ```
-

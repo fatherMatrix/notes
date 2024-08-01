@@ -48,4 +48,3 @@
 
 - `DEFINE_I440FX_MACHINE()`重点在于生成对应的`struct TypeInfo`并使用`type_init()`将其在`main()`运行前注册
 - 关键初始化函数为`pc_init1()`
-

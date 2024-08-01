@@ -1,5 +1,11 @@
 # 内存管理
 
+## Intel页表
+
+```
+
+```
+
 ## 未解压时的页表
 
 建立页表的代码在arch/x86/boot/compressed/head_64.S;
@@ -91,9 +97,9 @@
                                          |                       |         |       |                   |
                                          |                       |         |       |                   |
                                          +-----------------------+         |       +-------------------+
-                                         | level2_kernel_pgt     |---------+       |                   |
+                                     510 | level2_kernel_pgt     |---------+       |                   |
                                          +-----------------------+                 +-------------------+
-                                         | level2_fixmap_pgt     |---------+       |                   |
+                                     511 | level2_fixmap_pgt     |---------+       |                   |
                                          +-----------------------+         |       +-------------------+
                                                                            |
                                                                            |
@@ -103,7 +109,7 @@
                                                                                    |    not filled     |   |   |                    |
                                                                                    |                   |   |   |                    |
                                                                                    +-------------------+   |   |   not filled       |
-                                                                                   | level1_fixmap_pgt |---+   |                    |
+                                                                               506 | level1_fixmap_pgt |---+   |                    |
                                                                                    +-------------------+       |                    |
                                                                                    |    not filled     |       |                    |
                                                                                    +-------------------+       +--------------------+
@@ -125,6 +131,7 @@ x86_64_start_kernel
 代码在setup_arch中的init_mem_mapping，用于从虚拟地址空间的PAGE_OFFSET处直接映射所有的物理内存
 
 ```
+
 ```
 
 ## 页表头文件梳理
@@ -140,4 +147,3 @@ asm/pgalloc.h -> asm-generic/pgalloc.h
 [内存模型](http://www.wowotech.net/memory_management/memory_model.html)
 
 [Page Flags](https://zhuanlan.zhihu.com/p/590669353)
-

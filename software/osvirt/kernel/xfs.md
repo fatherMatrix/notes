@@ -18,7 +18,6 @@
 
 log item是一个xlog_op_header后紧跟的数据区域。每一个log item必须以xfs_log_item作为头。
 
-
 ```
 <oph><trans-hdr><start-oph><reg1-oph><reg1><reg2-oph>...<commit-oph>
 ```
@@ -44,6 +43,7 @@ xfs_sb_t - xfs_mount.m_sb
 xfs_agf_t - AG free block info - 1 sector
 
 xfs使用两棵树来跟踪空闲空间：
+
 - 以block number为键值
 - 以size为键值
 
@@ -53,7 +53,7 @@ xfs_agf_t中的block numbers/indexes/counts都是AG relative的。
 
 ### 索引节点表
 
-#### 外存数据结构 
+#### 外存数据结构
 
 xfs_agi_t - AG inode B+tree info - 1 sector
 

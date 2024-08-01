@@ -38,7 +38,6 @@ vfs_open
       file->f_mapping = bdev->bd_inode->i_mapping
 ```
 
-
 ## mknod例子
 
 ```

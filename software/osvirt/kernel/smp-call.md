@@ -17,7 +17,6 @@ on_each_cpu
   preempt_enable
 
 smp_call_function_many
-  
 ```
 
 ## smp_call_function的处理

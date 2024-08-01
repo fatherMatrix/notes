@@ -67,5 +67,4 @@ handle_ept_violation
   vcpu->arch.exit_qualification = exit_qualification
   kvm_mmu_page_fault
     tdp_page_fault
-      
 ```

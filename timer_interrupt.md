@@ -13,7 +13,7 @@ late_time_init/x86_late_time_init
   timer_init/hpet_timer_init
     hpet_enable                                 // 或者pit_timer_init; 选出一个作为global_clock_event，hpet优先
       hpet_legacy_clockevent_register
-          
+
     setup_default_timer_irq                     // 将上面选出的全局时钟事件源绑定到0号中断上
   intr_mode_init/apic_intr_mode_init
   tsc_init

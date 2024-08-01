@@ -57,5 +57,4 @@ proc_mkdir
 ```c
 proc_fill_super
   s->s_op = &proc_sops
-
 ```

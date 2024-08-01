@@ -91,12 +91,8 @@ kernel_init
     smp_prepare_cpus
       smp_ops.smp_prepare_cpus/native_smp_prepare_cpus
         x86_init.timers.setup_percpu_clockdev/setup_boot_APIC_clock
-          
+
           setup_APIC_timer                    // 设置bsp的lapic timer
-
-            
-
-      
 ```
 
 ## 1.3. 中断控制器模拟
@@ -218,7 +214,6 @@ kvm_vcpu_thread_fn
     kvm_arch_pre_run
     kvm_vcpu_ioctl(KVM_RUN)
     kvm_arch_post_run
-  
 ```
 
 ### 1.4.2. kvm
@@ -362,7 +357,7 @@ vcpu_enter_guest
 
 下面几个数据结构与APICv虚拟化息息相关：
 
-``` c
+```c
 +-------------------------------------+                 +----------+--------------------------+---------------------------+
 |                                     |         +-----> | Reserved | Outstanding Notification | Posted-interrupts request |
 |                                     |         |       +----------+--------------------------+---------------------------+
@@ -393,7 +388,7 @@ APICv虚拟中断的前半部分依旧要走IOAPIC -> LAPIC的中断分发过程
 
 APICv的代码也从LAPIC的kvm_irq_delivery_to_apic函数开始：
 
-``` c
+```c
 kvm_irq_delivery_to_apic
   kvm_irq_delivery_to_apic_fast
   kvm_apic_set_irq
@@ -410,7 +405,7 @@ kvm_irq_delivery_to_apic
 #### 1.6.4.1. 全部在kvm模拟
 
 |        | qemu               | kvm                | interface             |
-|--------|--------------------|--------------------|-----------------------|
+| ------ | ------------------ | ------------------ | --------------------- |
 | pic    | kvm_pic_set_irq    | kvm_set_pic_irq    | ioctl(KVM_IRQ_LINE)   |
 | ioapic | kvm_ioapic_set_irq | kvm_set_ioapic_irq | ioctl(KVM_IRQ_LINE)   |
 | msi    | msi_notify         | kvm_set_msi        | ioctl(KVM_SIGNAL_MSI) |
@@ -418,16 +413,16 @@ kvm_irq_delivery_to_apic
 #### 1.6.4.2. split模式
 
 |        | qemu            | kvm           | interface             |
-|--------|-----------------|---------------|-----------------------|
+| ------ | --------------- | ------------- | --------------------- |
 | pic    | pic_irq_request | vmx_enter_cpu | ioctl(KVM_INTERRUPT)  |
 | ioapic | ioapic_set_irq  | kvm_set_msi   | ioctl(KVM_IRQ_LINE)   |
 | msi    |                 | kvm_set_msi   | ioctl(KVM_SIGNAL_MSI) |
 
 qemu中的数据结构：
 
-|        | TypeInfo   | Class    | Instance       |
-|--------|------------|----------|----------------|
-| pic    | i8259_info | PICClass | PICCommonState |
+|     | TypeInfo   | Class    | Instance       |
+| --- | ---------- | -------- | -------------- |
+| pic | i8259_info | PICClass | PICCommonState |
 
 ## 1.7. 参考文献
 

@@ -29,5 +29,3 @@ kernel_init_freeable                     // 在kernel_init函数中调用
 - 提供了标准接口`audit_log`进行主动审计
 
 - 对于系统调用，在`do_syscall_64()`中预先埋了点进行处理
-
-
