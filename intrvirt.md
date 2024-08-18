@@ -427,3 +427,5 @@ qemu中的数据结构：
 ## 1.7. 参考文献
 
 [https://www.binss.me/blog/qemu-note-of-interrupt/](https://www.binss.me/blog/qemu-note-of-interrupt/)
+
+[虚拟化中的中断机制：X86与PIC 8259A探索（上）_处理器_控制器_Broiler](https://www.sohu.com/a/708299104_121124374)

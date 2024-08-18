@@ -13,6 +13,27 @@
 
 - preempt_enable()时
 
-## 参考文献
+# select
+
+```c
+task_numa_fault
+  numa_migrate_preferred
+    task_numa_migrate
+      migrate_swap
+        migrate_swap_stop
+          __migrate_swap_task
+            deactivate_task
+
+detach_one_task
+  detach_task
+
+load_balance
+  detach_tasks
+    detach_task
+      deactivate_task
+      set_task_cpu
+```
+
+# 参考文献
 
 1. [https://www.cnblogs.com/LoyenWang/p/12459000.html](https://www.cnblogs.com/LoyenWang/p/12459000.html)

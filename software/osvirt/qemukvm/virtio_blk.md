@@ -28,7 +28,11 @@ virtio_pci_probe(pci_dev)                              // pci_device结构体
     pci_dev->dev->driver_data = vp_dev
   vp_dev->pci_dev = pci_dev                            // 将pci_device关联到virtio_pci_device中
   pci_enable_device(pci_dev)
-  virtio_pci_modern_probe(vp_dev)
+  virtio_pci_modern_probe(vp_dev)                      // 映射、读取virtio pci设备在bar空间中的各种features
+    pci_find_capability
+      __pci_bus_find_cap_start
+      __pci_find_next_cap
+    
   register_virtio_device(&vp_dev->vdev)                // 注册struct virtio_device
 ```
 
@@ -131,6 +135,16 @@ static const struct blk_mq_ops virtio_mq_ops = {
 
 ![](virtio_blk.assets/6eac9e9716af371a887f254874deeef92b8aa145.png)
 
+# virtqueue
+
+核心数据结构如下图：
+
+![](virtio_blk.assets/372d045f39247bdac5fd129bf46f3a8c848c5ba2.png)
+
 # 参考文献
 
+[VirtIO实现原理 —— PCI基础（1）_virtio pcie-CSDN博客](https://blog.csdn.net/phmatthaus/article/details/135723055)
+
 [VIRTIO-BLK代码分析（2）VIRTIO驱动分析_mtk virtio驱动-CSDN博客](https://blog.csdn.net/flyingnosky/article/details/132723811)
+
+[VIRTIO-BLK代码分析（3）数据流处理_virtio-blk iothread-CSDN博客](https://blog.csdn.net/flyingnosky/article/details/132724114?spm=1001.2014.3001.5502)

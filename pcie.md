@@ -67,66 +67,66 @@ struct bus_type pcie_port_bus_type = {
 - PCI桥设备扫描，PCI桥是用于连接上一级PCI总线和下一级PCI总线的，当发现有下一级总线时，创建子结构，并再次调用pci_scan_child_bus_extend的函数来扫描下一级的总线，从这个过程看，就是一个递归过程。
 
 - 从设备的扫描过程看，这是一个典型的DFS（Depth First Search）过程，熟悉数据结构与算法的同学应该清楚，这就类似典型的走迷宫的过程；
-  
-  ## pci驱动与设备的匹配
-  
+
+## pci驱动与设备的匹配
+
   匹配由两种行为触发：
 
 - 新device添加
 
 - 新driver注册
-  
-  ### 新device添加
-  
-  ```c
-  pci_device_add(pci_dev dev, xxx)        // 本函数在调用前dev中的bus字段已经设置
-  device_add                            // core函数
-    bus_add_device
-      klist_add_tail                    // 将device加入bus的device list
-    bus_probe_device
-      device_initial_probe              // 如果设置了自动探测
-        device_attach
-          __device_attach_driver
-            driver_match_device
-            driver_probe_device         // 如果上一步匹配上了
-  ```
-  
-  ### 新driver注册
-  
-  ```c
-  pci_register_driver
-  __pci_register_driver
-    drv->driver.bus = &pci_bus_type    // 表明driver所属总线
-    driver_register                    // core函数
-      bus_add_driver
-        klist_add_tail                 // 将driver加入bus的driver list
-        driver_attach                  // 如果设置了自动探测，则进行操作
-          __driver_attach
-            driver_match_device
-            device_driver_attach       // 如果上一步匹配上了
-              driver_probe_device
-  ```
-  
-  ### driver_probe_device
-  
+
+### 新device添加
+
+  新设备添加到系统上之后，**猜测**应该由固件通过`ACPI`告知操作系统，具体告知方式可能为`SMI中断`或者`SCI中断`。最终应该调用到`pci_device_add()`函数：
+
+```c
+pci_device_add(pci_dev dev, xxx)      // 本函数在调用前dev中的bus字段已经设置
+device_add                            // core函数
+  bus_add_device
+    klist_add_tail                    // 将device加入bus的device list
+  bus_probe_device
+    device_initial_probe              // 如果设置了自动探测
+      device_attach
+        __device_attach_driver
+          driver_match_device
+          driver_probe_device         // 如果上一步匹配上了
+```
+
+### 新driver注册
+
+```c
+pci_register_driver
+__pci_register_driver
+  drv->driver.bus = &pci_bus_type    // 表明driver所属总线
+  driver_register                    // core函数
+    bus_add_driver
+      klist_add_tail                 // 将driver加入bus的driver list
+      driver_attach                  // 如果设置了自动探测，则进行操作
+        __driver_attach
+          driver_match_device
+          device_driver_attach       // 如果上一步匹配上了
+            driver_probe_device
+```
+
+### driver_probe_device
+
   最终会先尝试调用bus的probe函数，其中会回调到驱动的probe函数；如果bus的probe函数未定义，则直接调用driver的probe函数。  
-  
-  ### pci_bus_match
-  
-  ```c
-  pci_bus_match
-  to_pci_dev                // 获取要匹配的设备
-  to_pci_driver             // 获取要匹配的驱动
-  pci_match_device
-    pci_match_one_device    // 根据vendor id, device id等进行匹配
-  ```
+
+### pci_bus_match
+
+```c
+pci_bus_match
+to_pci_dev                // 获取要匹配的设备
+to_pci_driver             // 获取要匹配的驱动
+pci_match_device
+  pci_match_one_device    // 根据vendor id, device id等进行匹配
+```
 
 - 设备或者驱动注册后，触发pci_bus_match函数的调用，实际会去比对vendor和device等信息，这个都是厂家固化的，在驱动中设置成PCI_ANY_ID就能支持所有设备；
 
 - 一旦匹配成功后，就会去触发pci_device_probe的执行。
-  
-  ### pci_device_probe
 
-
+### pci_device_probe
 
 ![](pcie.assets/e7ca119ead4782a3a9833c83fa532c613187a2a6.png)

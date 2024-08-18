@@ -24,10 +24,9 @@ fork
             down_write_killable(parent mm->mmap_sem)
             down_write_nested(child mm->mmap_sem)
               foreach vma in parent
-                
+
             up_write(child mm->mmap_sem)
             up_write(parent mm->mmap_sem)
       ... ...
     wake_up_new_task        // 唤醒新进程
 ```
-

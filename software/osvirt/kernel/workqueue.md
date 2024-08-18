@@ -15,4 +15,3 @@ start_kernel
       kernel_init_freeable
         workqueue_init              // 第二阶段
 ```
-
