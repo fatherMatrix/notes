@@ -44,7 +44,9 @@ virtio的相关配置都基于pci/pcie设备的capability机制，capability原�
 
 ![](virtio_pci.assets/e878d792b572a0034a772c1d96f85edfe3d7ed48.png)
 
-virtio使用capability链表指示相关cfg，然后通过capability元素中的offset和length定位在BAR 4中的位置。
+virtio使用capability链表指示相关cfg，然后通过capability链表元素中的offset和length定位capability数据在BAR 4中的位置。
+
+要注意的是，capability链表元素本身还是存储在PCI配置空间中的。
 
 ### virtio实现的capability
 
@@ -52,13 +54,13 @@ virtio实现的capability有两种：
 
 - MSI-X Capability，ID为0x11。
 
-- vender specific，ID为0x09。vender specific又包含：
+- vendor specific，ID为0x09。vendor specific又包含：
   
   - virtio_pci_cap_common_cfg
   
   - virtio_pci_cap_isr_cfg
   
-  - virtio_pci_cap_device_cfg
+  - virtio_pci_cap_device_cfg，可选，用于传递设备自定义的cfg
   
   - virtio_pci_cap_notify_cfg
   

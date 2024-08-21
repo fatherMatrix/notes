@@ -1,6 +1,6 @@
-# PCI
+# PCI/PCIE
 
-PCI设备有三个空间：
+PCI/PCIe设备有三个空间：
 
 - 内存地址空间
 
@@ -8,7 +8,17 @@ PCI设备有三个空间：
 
 - 配置空间
 
-# PCIE
+## 配置空间
+
+### 整体配置空间
+
+![](pci.assets/df251786662fad26a81a3d13872ea049858b055d.png)
+
+### 配置空间头
+
+配置空间头占据整体配置空间的前64字节：
+
+![](pci.assets/349f1f88be47915280ab73877fa313eb50d67b21.png)
 
 ## Capability机制
 
@@ -23,9 +33,9 @@ PCI设备有三个空间：
 
 - ID：由相关SIG分配
 
-- Pointer：下一个Capability在4KB配置空间中的便宜点
+- Pointer：下一个Capability在整体配置空间中的偏移，PCI是256B，PCIe是4KB
   
-  - 第一个Capability结构的地址在246Byte配置空间的Capability字段中记录
+  - 第一个Capability结构的地址在配置空间头的Capability字段中记录
 
 # 总线枚举与初始化
 
