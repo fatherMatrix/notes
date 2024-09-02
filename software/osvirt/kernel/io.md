@@ -7,5 +7,3 @@
 # 参考文献
 
 [linux block layer第二篇bio 的操作 - geshifei - 博客园](https://www.cnblogs.com/kernel-dev/p/17306812.html)
-
-

@@ -32,7 +32,7 @@ register_kprobe
 do_int3
   ...
   kprobe_int3_handler
-    addr = regs->ip - sizeof(kprobe_opcode_t)	// 计算0xcc所在位置，以此得到kprobe结构体
+    addr = regs->ip - sizeof(kprobe_opcode_t)    // 计算0xcc所在位置，以此得到kprobe结构体
     kcb = get_kprobe_ctlblk()
     p = get_kprobe(addr)
     cur->pre_handler()                          // 调用pre_handler
@@ -136,6 +136,24 @@ kprobe打点时，可以使用echo stacktrace >> trace_options来使其显示对
  => do_int80_syscall_32
  => entry_INT80_compat
 ```
+
+## Kprobe Jump优化
+
+在进行优化探针之前，Kprobes 会做以下安全检查：
+
+- Kprobes 校验会被 jump 指令替换的区域（”已优化的区域“）完全处于一个函数内部。（jump 指令是多字节指令，因此可能会覆盖多个指令）
+
+- Kprobes 分析整个函数，并且确认不会跳入已优化的区域。特别是：
+  
+  - 该函数不包含间接跳转
+  - 该函数不包含引起异常的指令（因为被异常触发的固定代码可能会跳回到已优化的区域 — Kprobes 会检查异常表来验证这一点）
+  - 该函数附近没有跳转到已优化的区域（除了第一个字节）
+
+- 对于已优化区域中的每一个指令，Kprobes 会验证它们能否离线执行。
+
+[译｜2019｜Kernel Probes (Kprobes) – Blog](https://jayce.github.io/public/posts/trace/kernel-kprobes/)
+
+[Linux kprobe原理-CSDN博客](https://blog.csdn.net/weixin_45030965/article/details/125793813)
 
 ## 参考文献
 

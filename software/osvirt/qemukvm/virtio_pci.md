@@ -1,4 +1,4 @@
-# virtio_pci
+# virtio_pci原理
 
 ## PCI通用配置空间
 
@@ -67,3 +67,16 @@ virtio实现的capability有两种：
   - virtio_pci_cap_pci_cfg
 
 ![](virtio_pci.assets/2ec037f863b0a9be1e354e8482c7ae78c01d45af.png)
+
+# virtio的Qemu侧模拟
+
+```c
+static const TypeInfo virtio_pci_info = {
+    .name          = TYPE_VIRTIO_PCI,
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(VirtIOPCIProxy),
+    .class_init    = virtio_pci_class_init,
+    .class_size    = sizeof(VirtioPCIClass),
+    .abstract      = true,
+};
+```

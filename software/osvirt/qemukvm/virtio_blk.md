@@ -32,7 +32,7 @@ virtio_pci_probe(pci_dev)                              // pci_device结构体
     pci_find_capability
       __pci_bus_find_cap_start
       __pci_find_next_cap
-    
+
   register_virtio_device(&vp_dev->vdev)                // 注册struct virtio_device
 ```
 

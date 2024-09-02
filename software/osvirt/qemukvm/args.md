@@ -17,14 +17,9 @@ vm_config_groups[N] | qemu_machine_ops |  qemu_smp_opts   |  qemu_device_ops |  
                              |                   |                   |
                              V                   V                   V
                       +------------+      +------------+      +------------+
-                      |  QemuOpts  |      |  QemuOpts  |      |  QemuOpts  |
+      QemuOpts        |    |      |  QemuOpts  |      |  QemuOpts  |
                       +------------+      +------------+      +------------+
                              |
-                           
-
-
-
-
 ```
 
 ## 参考文献

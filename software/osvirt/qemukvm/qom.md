@@ -191,7 +191,7 @@ QEMU使用一个复杂的宏`OBJECT_DECLARE_TYPE()`定义了`Object`与其派生
 OBJECT_DECLARE_TYPE(X86CPU, X86CPUClass, X86_CPU)
 ```
 
-将会生成下面三个--函数--：
+将会生成下面三个**函数**：
 
 - `X86_CPU()`: 将任何一个`object 指针`转换为`X86CPU`
 - `X86_CPU_GET_CLASS()`: 根据`object 指针`获取到`X86CPUClass`

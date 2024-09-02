@@ -32,6 +32,10 @@ virtio_pci_probe() -> register_bus_type() -> device_add() -> .probe()：
 virtnet_probe
   dev = alloc_etherdev_mq
   dev->netdev_ops = &virtnet_netdev
+  init_vqs                                    // 初始化virtio queue
+    virtnet_alloc_queues
+    virtnet_find_vqs
+    virtnet_set_affinity
 ```
 
 ### virtio-pci层
@@ -40,6 +44,9 @@ virtnet_probe
 vp_modern_find_vqs
   vp_find_vqs
     vp_find_vqs_msix
+      vp_request_msix_vectors
+        pci_alloc_irq_vectors_affinity                 // 分配irq
+        request_irq                                        // 给config队列的irq设置处理函数
       vp_setup_vq
         vp_dev->setup_vq / setup_vq
           vring_create_virtqueue
