@@ -50,6 +50,7 @@ vp_modern_find_vqs
       vp_setup_vq
         vp_dev->setup_vq / setup_vq
           vring_create_virtqueue
+          vp_iowriteXX                                 // 通过common cfg向virtio后端通知virtqueue的地址
 ```
 
 # kvm侧中断配置的模拟

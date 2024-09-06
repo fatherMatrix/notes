@@ -11,15 +11,27 @@
 解析后的框架：
 
 ```
-    QemuOptsList    +------------------+------------------+------------------+------------------+------------------+
-vm_config_groups[N] | qemu_machine_ops |  qemu_smp_opts   |  qemu_device_ops |      ... ...     |      ... ...     |
-                    +------------------+------------------+------------------+------------------+------------------+
+    QemuOptsList    +------------------+------------------+------------------+------------------+
+vm_config_groups[N] | qemu_machine_ops |  qemu_smp_opts   |  qemu_device_ops |      ... ...     |   // qemu_add_opts()将QemuOptsList加入vm_config_groups数组
+                    +------------------+------------------+------------------+------------------+
                              |                   |                   |
                              V                   V                   V
                       +------------+      +------------+      +------------+
-      QemuOpts        |    |      |  QemuOpts  |      |  QemuOpts  |
+      QemuOpts        |  QemuOpts  |      |  QemuOpts  |      |  QemuOpts  |                        // opts_parse()针对某一类QemuOptsList解析参数并创建QemuOpts
                       +------------+      +------------+      +------------+
                              |
+                       +----------+
+                       |  QemuOpt |
+                       +----------+
+```
+
+## 解析过程
+
+```c
+main
+  qemu_init
+    qemu_add_opts                // 将各类QemuOptsList加入vm_config_groups数组
+    QemuOption * = lookup_opt
 ```
 
 ## 参考文献
