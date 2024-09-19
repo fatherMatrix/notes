@@ -21,7 +21,7 @@ vm_config_groups[N] | qemu_machine_ops |  qemu_smp_opts   |  qemu_device_ops |  
                       +------------+      +------------+      +------------+
                              |
                        +----------+
-                       |  QemuOpt |
+                       |  QemuOpt |                                                                 // opt_create()针对一个KV对，创建一个QemuOpt
                        +----------+
 ```
 
