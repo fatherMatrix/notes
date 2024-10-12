@@ -1,3 +1,17 @@
+# IO协议层次
+
+<img title="" src="io.assets/0f155ba643ffe1a0dd9de1831edc42b11aa82f51.png" alt="" width="1078">
+
+![](https://s6.51cto.com/oss/202111/30/9a5384a9e48a0cbfb787470292424d3e.jpg)
+
+<img src="https://i-blog.csdnimg.cn/blog_migrate/6c38a3fd6f7050f9ef10966e185cab11.png" title="" alt="在这里插入图片描述" width="1081">
+
+其中，Linux内核对SATA的实现有点坎坷，其讲SATA硬盘作为SCSI硬盘实现，libata作为scsi和sata之间的转换层：
+
+![](io.assets/8c4e7e7346b52727db2b0f5915b1fcfd6a9ddcd5.png)
+
+![](io.assets/83cecc1e78dcfdfffcca536ee997a6d7e439b491.png)
+
 # Nvme
 
 ## Nvme IO初始化
@@ -17,11 +31,43 @@ blk_mq_make_request
 
 ## Nvme IO完成
 
-![](io.assets/76bd8fe21fd69fbd68cb8061c631030ea0d57df8.png)
+```c
+nvme_irq
+  nvme_process_cq
+  nvme_complete_cqes
+    nvme_handle_cqe
+      nvme_end_request
+        blk_mq_complete_request
+          __blk_mq_complete_request
+            ... request_queue->mq_ops->complete() / nvme_pci_complete_rq    // 这里分三种情况，但最终都是调用complete回调
+              nvme_complete_rq
+                blk_mq_end_request
+                  blk_update_request
+                    req_bio_endio
+                      bio_endio
+                  __blk_mq_end_request
+```
 
 ## 参考文献
 
 [linux block layer第二篇bio 的操作 - geshifei - 博客园](https://www.cnblogs.com/kernel-dev/p/17306812.html)
+
+# SCSI
+
+## SCSI IO完成
+
+```c
+scsi_cmnd->scsi_done() / scsi_mq_done
+  blk_mq_complete_request
+    __blk_mq_complete_request
+      ... request_queue->mq_ops->complete() / scsi_softirq_done
+        scsi_finish_command
+          scsi_io_completion / scsi_io_completion_action
+            scsi_end_request
+              blk_update_request
+             __blk_mq_end_request
+             scsi_run_queue_async
+```
 
 # LVM
 
@@ -51,7 +97,17 @@ dm_setup_md_queue
 
 ## 队列创建
 
-队列创建前半部分（准备tags等）：
+队列创建前半部分，主要分配：
+
+- blk_mq_tag_set
+  
+  - blk_mq_tag_set.blk_mq_queue_map[i].mq_map，软硬队列的映射表，i表示类型HCTX_MAX_TYPES，mq_map是一个数组，下标为cpu/软件队列编号，元素为对应硬件队列编号
+  
+  - blk_mq_tags，每个硬件队列一个
+    
+    - blk_mq_tags.rqs，request指针数组
+    
+    - blk_mq_tags.rqs.request，实际的request元素
 
 ```c
 nvme_dev_add
@@ -75,8 +131,26 @@ nvme_dev_add
           blk_mq_alloc_rqs                                            // 分配blk_mq_tags中的request指针数组指向的request
 ```
 
+队列创建后半部分，在 blk_mq_init_queue()中完成。该函数主要分配块设备的运行队列request_queue，接着分配每个CPU专属的软件队列并初始化，分配硬件队列并初始化，然后建立软件队列和硬件队列的映射。
+
 ```c
-blk_alloc_queue_node
-  q = kmem_cache_alloc_node
-  
+nvme_alloc_admin_tags
+  blk_mq_init_queue
+    blk_alloc_queue_node
+      q = kmem_cache_alloc_node
+      bioset_init(&q->bio_split)
+      q->backing_dev_info = bdi_alloc_node()
+      blkcg_init_queue
+    blk_mq_init_allocated_queue
+      blk_mq_alloc_ctx                                // 分配per cpu的软件队列
+        blk_mq_ctxs = kzalloc()
+        ctxs->queue_ctx = alloc_percpu                // 分配blk_mq_ctxs结构体中per cpu的blk_mq_ctx
+        request_queue->queue_ctx = ctxs->queue_ctx    // request_queue中软件队列的来源就是blk_mq_ctxs->queue_ctx
+      blk_mq_sysfs_init
+      request_queue->queue_hw_ctx = kcalloc_node()    // 分配硬件队列指针数组，硬件队列的个数由驱动定义
+      blk_mq_realloc_hw_ctxs                          // 分配硬件队列元素
+      blk_queue_make_request(blk_mq_make_request)     // 设置make_request_fn
+      blk_mq_init_cpu_queues
+      blk_mq_map_swqueue                              // 完成软件队列和硬件队列的映射关系
+      elevator_init_mq                                // 初始化io调度器
 ```
