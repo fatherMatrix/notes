@@ -57,10 +57,10 @@ xfs_reclaim_worker
     xfs_reclaim_inodes_ag
       xfs_reclaim_inode_grab
         spin_lock(&xfs_inode->i_flags_lock)
-        __xfs_iflags_set(ip, XFS_IRECLAIM)             // 标记已被回收 - 要求是已经标记了XFS_IRECLAIMABLE，且未标记为XFS_IRECLAIM
+        __xfs_iflags_set(ip, XFS_IRECLAIM)              // 标记已被回收 - 要求是已经标记了XFS_IRECLAIMABLE，且未标记为XFS_IRECLAIM
         spin_unlock(&xfs_inode->i_flags_lock)
-      释放上面成功标记XFS_RECLAIM的xfs_inode              // 可以认为此处对应xfs_inode生命周期的完结
-  xfs_reclaim_work_queue                               // 保证本内核线程周期性运行
+      释放上面成功标记XFS_RECLAIM的xfs_inode               // 可以认为此处对应xfs_inode生命周期的完结
+  xfs_reclaim_work_queue                                // 保证本内核线程周期性运行
 ```
 
 针对上面第6行的要求，其含义为：

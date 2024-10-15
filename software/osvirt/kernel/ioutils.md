@@ -66,4 +66,3 @@ again:
 io_ticks的算法差别导致util的值变高。
 
 ## 为什么SSD盘不应该关注ioutils？
-

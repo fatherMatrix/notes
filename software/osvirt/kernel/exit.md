@@ -13,5 +13,4 @@ do_exit
 
 ```c
 exit_mm
-  
 ```

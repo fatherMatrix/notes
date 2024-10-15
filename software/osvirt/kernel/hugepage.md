@@ -29,5 +29,4 @@ hugetlb_sysctl_handler
   hugetlb_sysctl_handler_common
     __nr_hugepages_store_common
       set_max_huge_pages
-        
 ```

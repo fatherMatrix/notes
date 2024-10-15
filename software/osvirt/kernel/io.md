@@ -57,17 +57,45 @@ nvme_irq
 ## SCSI IO完成
 
 ```c
+vring_interrupt
+  vq.callback / virtscsi_req_done
+    virtscsi_vq_done
+      fn / virtscsi_complete_cmd
+        scsi_cmnd->scsi_done
+
 scsi_cmnd->scsi_done() / scsi_mq_done
   blk_mq_complete_request
     __blk_mq_complete_request
-      ... request_queue->mq_ops->complete() / scsi_softirq_done
-        scsi_finish_command
-          scsi_io_completion / scsi_io_completion_action
-            scsi_end_request
-              blk_update_request
-             __blk_mq_end_request
-             scsi_run_queue_async
+      ...
+
+blk_done_softirq                                            // BLOCK_SOFTIRQ软中断的处理函数
+  request_queue->mq_ops->complete() / scsi_softirq_done
+    scsi_log_completion                                     // 超时打印在这里
+    scsi_finish_command
+      scsi_io_completion / scsi_io_completion_action
+        scsi_end_request
+          blk_update_request
+          __blk_mq_end_request
+        scsi_run_queue_async
 ```
+
+## 参考文献
+
+[Linux Scsi子系统框架介绍 - 内核工匠 - 博客园](https://www.cnblogs.com/Linux-tech/p/13873882.html)
+
+[深入浅出SCSI子系统（一）Linux 内核中的 SCSI 架构-CSDN博客](https://blog.csdn.net/sinat_37817094/article/details/120357371)
+
+[深入浅出SCSI子系统（二）SCSI子系统对象-CSDN博客](https://blog.csdn.net/sinat_37817094/article/details/120541004)
+
+[深入浅出SCSI子系统（三）SCSI子系统初始化_scsi初始化-CSDN博客](https://blog.csdn.net/sinat_37817094/article/details/120584214)
+
+[深入浅出SCSI子系统（四）添加适配器到系统_深入浅出scsi子系统(四)添加适配器到系统-CSDN博客](https://blog.csdn.net/sinat_37817094/article/details/120585855)
+
+[深入浅出SCSI子系统（五）SCSI设备探测_mpt属于scsi子系统吗?-CSDN博客](https://blog.csdn.net/sinat_37817094/article/details/120600710)
+
+[深入浅出SCSI子系统（六）SCSI 磁盘驱动_scsi device-CSDN博客](https://blog.csdn.net/sinat_37817094/article/details/120447062)
+
+[深入浅出SCSI子系统（七）SCSI命令执行_scsi lib-CSDN博客](https://blog.csdn.net/sinat_37817094/article/details/120611409)
 
 # LVM
 

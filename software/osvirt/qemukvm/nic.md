@@ -62,7 +62,7 @@ pc_init1
       object_property_set_bool(true, "realize")
 ```
 
-摘抄：
+v6.x：
 
 ```c
 main
@@ -91,7 +91,7 @@ device_init_func
                     ->DEVICE(object_new(name))
                         ->object_new_with_type
                             ->object_initialize_with_type
-                                ->
+                                ->object_class_property_init_all
                                 ->object_init_with_type
                                     ->ti->instance_init(obj)    /* 创建 virtio-xx 设备实例初始化对象 */
                 ->object_set_properties_from_keyval
@@ -101,6 +101,16 @@ device_init_func
                         ->object_property_set_qobject
                             ->object_property_set
                                 ->prop->set(obj, v, name, prop->opaque, errp)    /* realize 调用 */
+```
+
+v2.6.0：
+
+```c
+main
+  qemu_opts_foreach(qemu_find_opts("device"), device_init_func)
+
+device_init_func
+  qdev_device_add
 ```
 
 # Virtio网卡的TypeInfo结构
