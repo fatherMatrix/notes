@@ -140,6 +140,25 @@ x86_64_start_kernel
 asm/pgalloc.h -> asm-generic/pgalloc.h
 ```
 
+## fork相关的内存过程
+
+## 内存分配与回收
+
+![](mm.assets/d76274ca84c667a755070680a59f82c510292fa3.png)
+
+## 缺页处理
+
+v6.6，x86_64：
+
+```c
+handle_page_fault
+  do_user_addr_fault
+    handle_mm_fault                            // On entry, we hold either the VMA lock or the mmap_lock (FAULT_FLAG_VMA_LOCK tells you which).
+      __handle_mm_fault
+        handle_pte_fault
+          do_pte_missing
+```
+
 ## 参考文献
 
 [内存初始化](https://zhuanlan.zhihu.com/p/613004422)
@@ -147,3 +166,5 @@ asm/pgalloc.h -> asm-generic/pgalloc.h
 [内存模型](http://www.wowotech.net/memory_management/memory_model.html)
 
 [Page Flags](https://zhuanlan.zhihu.com/p/590669353)
+
+http://linux.laoqinren.net/kernel/shrink_lruvec/

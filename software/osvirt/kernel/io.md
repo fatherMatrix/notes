@@ -1,16 +1,16 @@
 # IO协议层次
 
-<img title="" src="io.assets/0f155ba643ffe1a0dd9de1831edc42b11aa82f51.png" alt="" width="1078">
+<img title="" src="io.assets/0f155ba643ffe1a0dd9de1831edc42b11aa82f51.png" alt="" width="588">
 
 ![](https://s6.51cto.com/oss/202111/30/9a5384a9e48a0cbfb787470292424d3e.jpg)
 
 <img src="https://i-blog.csdnimg.cn/blog_migrate/6c38a3fd6f7050f9ef10966e185cab11.png" title="" alt="在这里插入图片描述" width="1081">
 
-其中，Linux内核对SATA的实现有点坎坷，其讲SATA硬盘作为SCSI硬盘实现，libata作为scsi和sata之间的转换层：
+其中，Linux内核对SATA的实现有点坎坷，其将SATA硬盘作为SCSI硬盘实现，libata作为scsi和sata之间的转换层：
 
-![](io.assets/8c4e7e7346b52727db2b0f5915b1fcfd6a9ddcd5.png)
+<img title="" src="io.assets/8c4e7e7346b52727db2b0f5915b1fcfd6a9ddcd5.png" alt="" width="589">
 
-![](io.assets/83cecc1e78dcfdfffcca536ee997a6d7e439b491.png)
+<img title="" src="io.assets/83cecc1e78dcfdfffcca536ee997a6d7e439b491.png" alt="" width="590">
 
 # Nvme
 
@@ -54,6 +54,10 @@ nvme_irq
 
 # SCSI
 
+## SCSI架构
+
+<img title="" src="io.assets/b9975b587ed307435af65dfcaf7f36fbe833c8ba.jpeg" alt="" width="771">
+
 ## SCSI IO完成
 
 ```c
@@ -96,6 +100,12 @@ blk_done_softirq                                            // BLOCK_SOFTIRQ软�
 [深入浅出SCSI子系统（六）SCSI 磁盘驱动_scsi device-CSDN博客](https://blog.csdn.net/sinat_37817094/article/details/120447062)
 
 [深入浅出SCSI子系统（七）SCSI命令执行_scsi lib-CSDN博客](https://blog.csdn.net/sinat_37817094/article/details/120611409)
+
+# UFS
+
+UFS作为SCSI的底层驱动来实现：
+
+<img title="" src="io.assets/fb8cb7f2296b2b8096673fc0d9b348d3a9b3ef20.png" alt="" width="766">
 
 # LVM
 

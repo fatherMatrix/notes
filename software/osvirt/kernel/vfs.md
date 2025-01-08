@@ -205,3 +205,103 @@ __sys_setxattr
                                         // security. 不做特别检查，因为前面已经检查过了
         inode_unlock
 ```
+
+## syncfs
+
+```c
+sync_filesystem(sb)
+  __sync_filesystem(nowait)
+  __sync_filesystem(wait)
+    if (wait)
+      sync_inodes_sb                         // 写回inode并等待
+    else
+      writeback_inodes_sb(WB_REASON_SYNC)    // 写回inode，只submit_bio，不等待
+    sb->s_op->sync_fs()
+    __sync_blockdev
+```
+
+```c
+writeback_inodes_sb
+  writeback_inodes_sb_nr
+    __writeback_inodes_sb_nr                                        // 回写特定super_block下的inode
+      make struct wb_writeback_work
+      bdi_split_work_to_wbs
+        foreach bdi_writeback in backing_dev_info->wb_list          // 每个memcg对应一个bdi_writeback
+          wb_split_bdi_pages                                        // 根据memcg的带宽领取对应份额的page
+          make struct wb_writeback_work                             // 生成子work，并设置自动释放
+          wb_queue_work
+            atomic_inc(done->cnt)                                   // 增加done->cnt，表示有一个wb_writeback_work正在queue_work()中
+            spin_lock_bh(bdi_writeback->work_lock)
+            list_add_tail(&wb_writeback_work->list, &bdi_writeback->work_list)    // 这是工作材料，放到这里，后续由worker_pool中的worker来取出处理
+            mod_delayed_work(bdi_wq, wb_workfn)                     // 某个时间后被workqueue调用，这是工作流程
+            spin_unlock_bh(bdi_writeback->work_lock)
+      wb_wait_for_completion(&wb_write_work.done)                   // 等待done->cnt变为0
+```
+
+下面的路径在工作队列中执行：
+
+```c
+wb_workfn                                                           // 以各种姿势调用__writeback_inodes_wb()
+  -wb_do_writeback                                                  // normal path
+    wb_writeback
+      queue_io
+      writeback_sb_inodes
+        make writeback_control
+        __writeback_single_inode
+          do_writepages
+            address_space->a_ops->writepages
+              write_cache_pages 5.x / iomap_writepages 6.x          // 针对特定inode开始flush pagecache
+    wb_check_start_all                                              // 检查是否需要sync all
+    wb_check_old_data_flush                                         // 检查是否需要周期性回写
+    wb_check_background_flush                                       // 检查background回写是否需要继续
+  -writeback_inodes_wb                                              // corner case，没有足够的worker了，同步处理
+    wb_writeback_work.range_cyclic = 1
+    __writeback_inodes_wb
+      writeback_sb_inodes                                           // 写bdi_writeback->b_io上的一些inodes
+```
+
+## sync
+
+```cag-0-1idj5p0niag-1-1idj5p0niag-0-1idj5p0niag-1-1idj5p0niag-0-1idj5p0niag-1-1idj5p0ni
+ksys_sync
+  wakeup_flusher_threads(WB_REASON_SYNC)
+  iterate_supers(sync_inodes_one_sb, NULL)
+  iterate_supers(sync_fs_one_sb, &nowait)
+  iterate_supers(sync_fs_one_sb, &wait)
+  iterate_bdevs(fdatawrite_one_bdev, NULL)
+  iterate_bdevs(fdatawait_one_bdev, NULL)  
+```
+
+## readahead
+
+5.4内核：
+
+```c
+generic_file_buffered_read
+  find_get_page
+  page_cache_sync_readahead
+  page_cache_async_readahead
+  wait_on_page_locked_killable
+```
+
+## 几个重要哈希表
+
+- mountpoint_hashtable
+  
+  - 元素是struct mountpoint
+  
+  - 哈希是挂载点dentry
+  
+  - 参见`get_mountpoint()`
+
+- mount_hashtable
+  
+  - 元素是struct mount
+  
+  - 哈希是{parent mount, mountpoint dentry}
+  
+  - 参见`attach_mnt()`
+
+- dentry_hashtable
+
+- inode_hashtable

@@ -57,4 +57,8 @@ proc_mkdir
 ```c
 proc_fill_super
   s->s_op = &proc_sops
+  root_inode = proc_get_inode(proc_root)
+    inode->i_op = proc_root->proc_iops
+    inode->i_fop = proc_root->proc_fops                    // 如果是dir
+    inode->i_fop = proc_reg_file_ops                       // 如果是reg file
 ```

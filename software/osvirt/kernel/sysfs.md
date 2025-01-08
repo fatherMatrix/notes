@@ -5,5 +5,3 @@
 ```c
 sysfs_create_dir_ns
 ```
-
-

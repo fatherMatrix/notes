@@ -38,20 +38,26 @@
 handle_pte_fault
   do_fault
     do_shared_fault
-        do_page_mkwrite
-          vmf->vma->vm_ops->page_mkwrite
-            xfs_filemap_page_mkwrite
-              iomap_page_mkwrite
-                lock_page
-                iomap_apply(iomap_page_mkwrite_actor)
-                  iomap_page_create                         // 准备回写数据结构 ！
-                  set_page_dirty
-                    ... TestSetPageDirty                    // 设置page结构体中的PageDirty
-                    ... __set_page_dirty
-                      __xa_set_mark(PAGECACHE_TAG_DIRTY)    // 设置pagecache xarray中的tag，用于write_cache_pages中的scan
-                    ... __mark_inode_dirty
-                wait_for_stable_page
-        finish_fault                                        // 设置pte中的writable，dirty位硬件自动设置
+      __do_fault
+        ... lock_page                                    // LOCK A   ------
+      do_page_mkwrite
+        unlock_page                                      // UNLOCK A ------
+        vmf->vma->vm_ops->page_mkwrite
+          xfs_filemap_page_mkwrite
+            iomap_page_mkwrite
+              lock_page                                   // LOCK B  ------
+              iomap_apply(iomap_page_mkwrite_actor)
+                iomap_page_create                         // 准备回写数据结构 ！
+                set_page_dirty
+                  ... TestSetPageDirty                    // 设置page结构体中的PageDirty
+                  ... __set_page_dirty
+                    __xa_set_mark(PAGECACHE_TAG_DIRTY)    // 设置pagecache xarray中的tag，用于write_cache_pages中的scan
+                  ... __mark_inode_dirty
+              wait_for_stable_page                        // 这个不一定执行，NOTE：要看是否设置BDI_CAP_STABLE_WRITES
+      finish_fault                                        // 设置pte中的writable，dirty位硬件自动设置
+      fault_dirty_shared_page
+        set_page_dirty
+        unlock_page                                       // UNLOCK B ------
 ```
 
 ### 脏页回写
@@ -59,12 +65,12 @@ handle_pte_fault
 ```c
 write_cache_pages
   scan xarray PAGECACHE_TAG_DIRTY
-  lock_page
+  lock_page                                                 // LOCK A   ------
   clear_page_dirty_for_io
     page_mkclean                                            // 通过rmap机制清除pte的dirty、writable标志
     TestClearPageDirty                                      // 清除page结构体中的PageDirty
   xfs_do_writepage
-    ... unlock_page
+    ... unlock_page                                         // UNLOCK A ------
 ```
 
 ### 第二次写访问文件页
@@ -80,7 +86,12 @@ handle_pte_fault
       do_wp_page                                            // 访问权限错误
         wp_page_shared
           do_page_mkwrite                                   // 设置page结构体中的PageDirty
-          finish_mkwrite_fault                              // 设置pte中的writable，dirty位硬件自动设置
+            ... iomap_page_mkwrite                          // LOCK A   ------
+          finish_mkwrite_fault                              // 设置pte中的writable
+        fault_dirty_shared_page
+          unlock_page                                       // UNLOCK A ------
+      pte_mkdirty                                           // 设置pte中的dirty
+      pte_mkyoung
 ```
 
 ## write系统调用

@@ -89,6 +89,11 @@ rcu_gp_kthread
   rcu_state.gp_state = RCU_GP_DONE_GPS
   rcu_gp_init
     WRITE_ONCE(rcu_state.gp_flags, 0)            // Clear all flags: New GP
+    __note_gp_changes
+  rcu_gp_fqs_loop
+  rcu_state.gp_state = RCU_GP_CLEANUP
+  rcu_gp_cleanup
+  rcu_state.gp_state = RCU_GP_CLEANED
 ```
 
 ## 时钟中断对RCU静止状态的检测
