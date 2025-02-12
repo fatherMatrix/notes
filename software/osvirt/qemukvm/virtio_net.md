@@ -24,7 +24,7 @@ static struct virtio_driver virtio_net_driver = {
 
 virtio_pci_probe() -> register_bus_type() -> device_add() -> .probe()：
 
-![](https://img2020.cnblogs.com/blog/1771657/202103/1771657-20210328173804452-1571678857.png)
+![](virtio_net.assets/e79e19a0bc45db97ccc7651bdf6b778ef6364cda.png)
 
 ### virtio-net层
 

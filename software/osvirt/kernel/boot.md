@@ -26,9 +26,9 @@
       X+10000 +------------------------+
               |  Stack/heap            |      For use by the kernel real-mode code.
       X+08000 +------------------------+
-              |  Kernel setup          |      The kernel real-mode code.                # 2. boot loader jump here <- X + 0x200 (start_of_setup, arch/x86/boot/header.S)
+              |  Kernel setup          |      The kernel real-mode code.                # 2. boot loader jump here <- X + 0x200 (arch/x86/boot/header.S:start_of_setup)
               |  Kernel boot sector    |      The kernel legacy boot sector.            # 未使用，直接跳过
-      X       +------------------------+
+      X       +------------------------+                                                # <- arch/x86/boot/header.S:_start
               |  Boot loader           |      <- Boot sector entry point 0000:7C00      # 1. BIOS jump here <- 0x7c00
       001000  +------------------------+
               |  Reserved for MBR/BIOS |

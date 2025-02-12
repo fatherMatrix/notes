@@ -37,3 +37,5 @@ load_balance
 # 参考文献
 
 1. [https://www.cnblogs.com/LoyenWang/p/12459000.html](https://www.cnblogs.com/LoyenWang/p/12459000.html)
+2. https://arthurchiao.art/blog/linux-cfs-design-and-implementation-zh/
+3. 

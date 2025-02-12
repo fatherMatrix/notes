@@ -24,9 +24,9 @@ ticket spinlock的缺陷：缓存行颠簸，即持有者释放锁的时候要in
 
 ```c
 struct mcs_spinlock {
-	struct mcs_spinlock *next;
-	int locked; /* 1 if lock acquired */
-	int count;  /* nesting count, see qspinlock.c */
+    struct mcs_spinlock *next;
+    int locked; /* 1 if lock acquired */
+    int count;  /* nesting count, see qspinlock.c */
 };
 ```
 
@@ -51,5 +51,52 @@ struct mcs_spinlock {
 - 结构体太大了
 
 ## qspinlock
+
+思路还是mcs spinlock，只不过适应了当前的数据结构：
+
+![](spinlock.assets/63247fdb2f0842c0648bef4b8ca16e493cdd2836.jpg)
+
+### 三元组
+
+```c
+/*
+ * Bitfields in the atomic value:
+ *
+ * When NR_CPUS < 16K
+ *  0- 7: locked byte
+ *     8: pending
+ *  9-15: not used
+ * 16-17: tail index
+ * 18-31: tail cpu (+1)
+ *
+ * When NR_CPUS >= 16K
+ *  0- 7: locked byte
+ *     8: pending
+ *  9-10: tail index
+ * 11-31: tail cpu (+1)
+ */
+```
+
+抽象一个三元组（tail，pending，locked）。
+
+### tail idx的作用
+
+每个cpu上有1个qnode数组，数组中有4个元素。因为spinlock可以在不同的上下文中被调用，所以需要准备多个qnode，tail_idx就是编码了本cpu此次排队使用的第几个qnode。
+
+应注意的是，并没有严格指定idx和上下文类型的一一对应关系。因为上下文是后入先出的，不会乱序，所以每次对idx+1即可，可以跳着来。
+
+## pvspinlock
+
+spinlock的实现依赖这样一个假设：锁的持有线程和等待线程都不能被抢占。但是在虚拟化场景下，vCPU可能在任意时刻被hypervisor调度，导致其他vCPU上的锁等待线程忙等浪费CPU。这会导致已知的Lock Holder Preemption（LHP）和 Lock Waiter Preemption（LWP）问题。
+
+- LHP：虚拟机中的锁持有线程被抢占，导致锁等待线程忙等，直到锁持有者线程再次被调度并释放锁后，锁等待线程才能获取到锁。从锁持有线程被抢占到其再次被调度运行这段时间，其余锁等待线程的忙等其实是在浪费CPU算力。
+
+- LWP：虚拟机中的下一个锁等待线程被抢占，直到其下一次再次被调度并获取锁后，其余锁等待线程的忙等其实锁在浪费CPU算力。
+
+### 核心逻辑
+
+```c
+
+```
 
 

@@ -305,3 +305,14 @@ generic_file_buffered_read
 - dentry_hashtable
 
 - inode_hashtable
+
+## 关于inode.i_rwsem
+
+在v6.6中：
+
+|                  | xfs                       | ext4                                                 | bcachefs  |
+| ---------------- | ------------------------- | ---------------------------------------------------- | --------- |
+| **buffer read**  | shared                    | -                                                    |           |
+| **buffer write** | exculsive                 | exclusive                                            | exclusive |
+| **direct read**  | shared                    | shared                                               |           |
+| **direct write** | 对齐时为shared；未对齐时为exculsive | 尺寸变更时为exclusive；尺寸未变更时为shared；尺寸未变更，但非对齐时也用exclusive | exclusive |

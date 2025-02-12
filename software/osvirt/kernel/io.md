@@ -12,6 +12,30 @@
 
 <img title="" src="io.assets/83cecc1e78dcfdfffcca536ee997a6d7e439b491.png" alt="" width="590">
 
+另一张图中，猜测ATA Bridge应该处于SCSI Lower Level？是的！
+
+![](io.assets/09a162a7f248cfad8560c1224cf07de8edd5f9f3.png)
+
+引用：
+
+三层结构：
+
+- The top layer handles operations for a class of device. For example, the sd (SCSI disk) driver is at this layer; it knows how to translate requests from the kernel block device interface into disk-specific commands in the SCSI protocol, and vice versa.
+
+- The middle layer moderates and routes the SCSI messages between the top and bottom layers, and keeps track of all of the SCSI buses and devices attached to the system.
+
+- The bottom layer handles hardware-specific actions. The drivers here send outgoing SCSI protocol messages to specific host adapters or hardware, and they extract incoming messages from the hardware. The reason for this separation from the top layer is that although SCSI messages are uniform for a device class (such as the disk class), different kinds of host adapters have varying procedures for sending the same messages.
+
+备注：
+
+The top and bottom layers contain many different drivers, but it’s important to remember that, for any given device file on your system, the kernel uses one top-layer driver and one lower-layer driver. For the disk at /dev/sda in our example, the kernel uses the sd top-layer driver and the ATA bridge lower-layer driver.
+
+There are times when you might use more than one upper-layer driver for one hardware device (see 3.6.3 Generic SCSI Devices). For true hardware SCSI devices, such as a disk attached to an SCSI host adapter or a hardware RAID controller, the lower-layer drivers talk directly to the hardware below. However, for most hardware that you find attached to the SCSI subsystem, it’s a different story.
+
+目前很少有底层直接使用SCSI设备的情况了，大部分情况是底层使用SATA设备。
+
+> 对于SAS盘，中间的转换库不是libata，而是libsas。
+
 # Nvme
 
 ## Nvme IO初始化
