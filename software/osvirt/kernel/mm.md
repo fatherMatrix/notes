@@ -161,6 +161,8 @@ asm/pgalloc.h -> asm-generic/pgalloc.h
 
 ## fork相关的内存过程
 
+参见fork.md
+
 ## 内存分配与回收
 
 ![](mm.assets/d76274ca84c667a755070680a59f82c510292fa3.png)
@@ -187,3 +189,94 @@ handle_page_fault
 [Page Flags](https://zhuanlan.zhihu.com/p/590669353)
 
 http://linux.laoqinren.net/kernel/shrink_lruvec/
+
+# 匿名页判断
+
+## PageAnon(page) && PageSwapBacked(page)
+
+说明该page是一个标准的匿名页，其page->mapping指向对应的vma->anon_vma：
+
+![](mm.assets/ad1ddf41f71c4fdc05dd74e99caba7bbff97cee5.png)
+
+## !PageAnon(page) && PageSwapBacked(page)
+
+shmem的情况：
+
+![](mm.assets/a0412205e8cb89b185e018822f7f9ec54dd1e10e.png)
+
+## PageAnon(page) && !PageSwapBacked(page)
+
+这是一种比较特殊的情况，称为lazyfree pages，这种pages是通过madvise()对匿名页设置了MADV_FREE形成的。  关于MADV_FREE相关的情况具体参考：https://man7.org/linux/man-pages/man2/madvise.2.html  
+
+不过要形成PageAnon(page) && !PageSwapBacked(page)这种状态并非一蹴而就，而是分两个阶段：  
+
+### MADV_FREE
+
+将page加入到lazyfree缓存链表this_cpu_ptr(&lru_pvecs.lru_lazyfree)中，如下流程图所示：
+
+![](mm.assets/06237bb20bdc38d345958757b5ecabd9fc090fea.png)
+
+### 清除PG_swapbacked标记
+
+清除lazyfree pages PG_swapbacked标志的点有两个：  
+
+- lazyfree lru缓存链表满或者PageCompound(page)的情况
+
+- 内存紧张进行回收时的情况
+
+这两种情况都会调用lru_lazyfree_fn()函数来将lazyfree lru缓存链表上的page转移到lru链表上：
+
+![](mm.assets/5ca4a3a057d542550d459e2c17697293a66623f8.png)
+
+## 内核注释
+
+参见`include/linux/page-flags.h`中对各标记的解释：
+
+> PG_swapbacked is set when a page uses swap as a backing storage.  This are usually PageAnon or shmem pages but please note that even anonymous pages might lose their PG_swapbacked flag when they simply can be dropped (e.g. as a result of MADV_FREE).
+
+# Cache
+
+## Cache架构
+
+### 直接映射（Direct Mapped）
+
+只有`一路Cache`，即`1-Way Cache`：
+
+![](mm.assets/e3b327244c3506ac0f13bc63bba1dbcd4c647fcd.png)
+
+### 多路组相连（N-Way Set Associate）
+
+现代Cache实现的主流方式：
+
+![](mm.assets/b0a9620c9eb05d5c0d676b63989e83007fd43286.png)
+
+### 全相联（Fully Associate）
+
+每Way中只有一个Set的多路组相连
+
+## Cache问题
+
+### Cache歧义
+
+定义：一个VA映射到不同的PA，在VIVT下会`将不同PA的数据映射到同一个缓存行`，但VIVT无法辨别该缓存行中的数据属于哪个PA。
+
+场景：典型的场景是进程切换，进程1的VA映射到PA1，进程2的VA映射到PA2。
+
+危险：此时如果使用`VIVT`时，Cache无法通过`Tag区域`辨别VA对应缓存行中的数据对应哪个PA。进而导致读到错误的数据。
+
+`VIPT`和`PIPT`不存在Cache歧义问题（因为此时Tag来自于PA）。
+
+### Cache别名
+
+定义：多个不同的虚拟地址 (VA1,VA2,…) ，如果映射到同一个 物理地址 PA (如不同进程间的共享内存)，可能导致 `同一PA的数据映射到多个不同的Cache行`的情形，就是所谓的 `Cache别名`。
+
+危险：`Cache 别名` 会导致 `Cache 浪费`，以及`潜在的数据不一致性`。
+
+`PIPT`不存在Cache别名问题。
+
+- 第一类 Cache 别名问题是由`VIVT`下`Cache Index的不唯一性`引发的 。假设有一个`8KB`的`直接映射(Direct Mapped)的Cache`，那么Cache查找的`Index + Offset`两部分需要`13-bit`；同时假定内存系统采用`4KB`大小的页面，那么页面内偏移需要`12-bit`。当`VA1,VA2`映射到同一`PA`时，则一定有`VA1[11:0]==VA2[11:0] (即 页面内偏移位置相同)`，但`VA1[12]==VA2[12] 则不一定成立`；如果`VA1[12] != VA2[12]`，则意味着`VA1 和 VA2 的 Index 值不同 (VA[12]是Index的一位)`，所以`VA1和VA2会占据两个不同的 Cache 行`。
+
+- 第二类 Cache 别名问题是由 VIVT 下 Cache Tag 的不唯一性 引发的。假设有一个 8KB 两路组相联 的 Cache ，Cache 查找的 Index + Offset 两部分需要 12-bit。当 VA1,VA2 映射到同一 PA 时，则一定有 VA1[11:0]==VA2[11:0] (即 页面内偏移位置相同) ，也即 VA1,VA2 Cache 查找的 Index 是相等的，这意味着 VA1,VA2 的 Cache 行位于同一组(Set)，但同时由于 VA1 != VA2，所以 VA1 和 VA2 的 Cache Tag 值不相等，这样 VA1,VA2 映射的 PA 数据，会被加载同一 Cache 组中的不同路(Way) 的 Cache 行中，也就导致了 Cache 别名。
+
+- 第三类 Cache 别名问题是由 VIPT 下 Cache Index 的不唯一性 引发的。假设有一个 32KB 4路组相联 的 Cache，那么 Cache 查找的 Index + Offset 两部分需要 13-bit；同时假定内存系统采用 4KB 大小的页面，那么页面内偏移需要 12-bit 。当 VA1,VA2 映射到同一 PA 时，则一定有 VA1[11:0]==VA2[11:0] (即 页面内偏移位置相同) ，但 VA1[12]==VA2[12] 则不一定成立；如果 VA1[12] != VA2[12]，则意味着 VA1 和 VA2 的 Index 值不同 (VA[12]是Index的一位)，这样 VA1,VA2 映射的 PA 数据，会被加载到 Cache 的不同 Cache 行中，也就是 Cache 别名。
+  

@@ -52,7 +52,6 @@ rescuer thread在workqueue创建的时候就创建了，无需再次分配内存
 
 ```c
 rescuer_thread
-  
 ```
 
 ## worker创建
@@ -71,6 +70,13 @@ queue_work_on
     insert_work
 ```
 
+## worker执行工作
+
+```c
+worker_thread
+  
+```
+
 ## worker_pool动态缩减
 
 ```c
@@ -82,8 +88,6 @@ idle_worker_timeout
 ```c
 pool_mayday_timeout
 ```
-
-
 
 ## 参考文献
 
