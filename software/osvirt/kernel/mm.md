@@ -268,15 +268,14 @@ shmem的情况：
 
 ### Cache别名
 
-定义：多个不同的虚拟地址 (VA1,VA2,…) ，如果映射到同一个 物理地址 PA (如不同进程间的共享内存)，可能导致 `同一PA的数据映射到多个不同的Cache行`的情形，就是所谓的 `Cache别名`。
+定义：多个不同的虚拟地址 (VA1,VA2,…) ，如果映射到同一个物理地址PA(如不同进程间的共享内存)，可能导致 `同一PA的数据映射到多个不同的Cache行`的情形，就是所谓的 `Cache别名`。
 
 危险：`Cache 别名` 会导致 `Cache 浪费`，以及`潜在的数据不一致性`。
 
 `PIPT`不存在Cache别名问题。
 
-- 第一类 Cache 别名问题是由`VIVT`下`Cache Index的不唯一性`引发的 。假设有一个`8KB`的`直接映射(Direct Mapped)的Cache`，那么Cache查找的`Index + Offset`两部分需要`13-bit`；同时假定内存系统采用`4KB`大小的页面，那么页面内偏移需要`12-bit`。当`VA1,VA2`映射到同一`PA`时，则一定有`VA1[11:0]==VA2[11:0] (即 页面内偏移位置相同)`，但`VA1[12]==VA2[12] 则不一定成立`；如果`VA1[12] != VA2[12]`，则意味着`VA1 和 VA2 的 Index 值不同 (VA[12]是Index的一位)`，所以`VA1和VA2会占据两个不同的 Cache 行`。
+- 第一类Cache别名问题是由`VIVT`下`Cache Index的不唯一性`引发的 。假设有一个`8KB的直接映射(Direct Mapped)`的Cache，那么Cache查找的`Index + Offset`两部分需要`13-bit`；同时假定内存系统采用`4KB`大小的页面，那么页面内偏移需要`12-bit`。当`VA1,VA2映射到同一PA`时，则一定有`VA1[11:0]==VA2[11:0] (即 页面内偏移位置相同)`，但`VA1[12]==VA2[12] 则不一定成立`；如果`VA1[12] != VA2[12]`，则意味着`VA1 和 VA2 的 Index 值不同 (VA[12]是Index的一位)`，所以`VA1和VA2会占据两个不同的 Cache 行`。
 
-- 第二类 Cache 别名问题是由 VIVT 下 Cache Tag 的不唯一性 引发的。假设有一个 8KB 两路组相联 的 Cache ，Cache 查找的 Index + Offset 两部分需要 12-bit。当 VA1,VA2 映射到同一 PA 时，则一定有 VA1[11:0]==VA2[11:0] (即 页面内偏移位置相同) ，也即 VA1,VA2 Cache 查找的 Index 是相等的，这意味着 VA1,VA2 的 Cache 行位于同一组(Set)，但同时由于 VA1 != VA2，所以 VA1 和 VA2 的 Cache Tag 值不相等，这样 VA1,VA2 映射的 PA 数据，会被加载同一 Cache 组中的不同路(Way) 的 Cache 行中，也就导致了 Cache 别名。
+- 第二类Cache 别名问题是由`VIVT`下`Cache Tag 的不唯一性`引发的。假设有一个`8KB两路组相联`的Cache，Cache查找的`Index + Offset`两部分需要`12-bit`。当`VA1,VA2映射到同一PA`时，则一定有`VA1[11:0]==VA2[11:0] (即 页面内偏移位置相同) `，也即 `VA1,VA2 Cache 查找的 Index 是相等的，这意味着 VA1,VA2 的 Cache 行位于同一组(Set)，但同时由于 VA1 != VA2，所以 VA1 和 VA2 的 Cache Tag 值不相等，这样 VA1,VA2 映射的 PA 数据，会被加载同一 Cache 组中的不同路(Way) 的 Cache 行中，也就导致了 Cache 别名`。
 
-- 第三类 Cache 别名问题是由 VIPT 下 Cache Index 的不唯一性 引发的。假设有一个 32KB 4路组相联 的 Cache，那么 Cache 查找的 Index + Offset 两部分需要 13-bit；同时假定内存系统采用 4KB 大小的页面，那么页面内偏移需要 12-bit 。当 VA1,VA2 映射到同一 PA 时，则一定有 VA1[11:0]==VA2[11:0] (即 页面内偏移位置相同) ，但 VA1[12]==VA2[12] 则不一定成立；如果 VA1[12] != VA2[12]，则意味着 VA1 和 VA2 的 Index 值不同 (VA[12]是Index的一位)，这样 VA1,VA2 映射的 PA 数据，会被加载到 Cache 的不同 Cache 行中，也就是 Cache 别名。
-  
+- 第三类Cache别名问题是由`VIPT`下`Cache Index 的不唯一性`引发的。假设有一个`32KB 4路组相联`的Cache，那么Cache查找的`Index + Offset`两部分需要`13-bit`；同时假定内存系统采用 `4KB`大小的页面，那么页面内偏移需要`12-bit` 。当`VA1,VA2映射到同一PA` 时，则一定有 `VA1[11:0]==VA2[11:0] (即 页面内偏移位置相同)`，但`VA1[12]==VA2[12] 则不一定成立`；如果`VA1[12] != VA2[12]`，则意味着`VA1 和 VA2 的 Index 值不同 (VA[12]是Index的一位)，这样 VA1,VA2 映射的 PA 数据，会被加载到 Cache 的不同 Cache 行中，也就是 Cache 别名`。

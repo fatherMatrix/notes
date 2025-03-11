@@ -96,7 +96,6 @@ int proc_soft_watchdog(struct ctl_table *table, int write, void __user *buffer, 
  * /proc/sys/kernel/watchdog_thresh
  */
 int proc_watchdog_thresh(struct ctl_table *table, int write, void __user *buffer, size_t *lenp, loff_t *ppos)
-
 ```
 
 更新操作都会执行到：

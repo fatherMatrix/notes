@@ -90,9 +90,19 @@ xfs_log_item
 | file | xfs_file_operations     | xfs_inode_operations     |
 | dir  | xfs_dir_file_operations | xfs_dir_inode_operations |
 
-### write_iter
+## read_iter
 
-#### dio
+### dio
+
+### buffer_io
+
+```c
+
+```
+
+## write_iter
+
+### dio
 
 ```c
 xfs_file_write_iter
@@ -135,9 +145,9 @@ xfs_file_write_iter
     xfs_iunlock
 ```
 
-#### buffer io
+### buffer io
 
-##### 写入pagecache：
+#### 写入pagecache：
 
 ```c
 xfs_file_write_iter
@@ -149,7 +159,7 @@ xfs_file_write_iter
     xfs_iunlock(iolock)                             // vfs inode->i_rwsem
 ```
 
-##### pagecache回写触发
+#### pagecache回写触发
 
 - 主动触发
   
@@ -177,7 +187,7 @@ xfs_file_write_iter
 
 - O_DIRECT
 
-##### pagecache回写流程
+#### pagecache回写流程
 
 ```c
 xfs_vm_writepages
@@ -188,7 +198,7 @@ xfs_vm_writepages
     iomap_submit_ioend
 ```
 
-### write_inode_now
+## write_inode_now
 
 ```c
 

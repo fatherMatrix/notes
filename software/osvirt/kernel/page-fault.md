@@ -48,6 +48,42 @@ kvm_apf_trap_init                                           // x86_init.irqs.tra
 
 ### async_page_fault()的流程
 
+原理：
+
+```c
+dotraplinkage void
+do_async_page_fault(struct pt_regs *regs, unsigned long error_code, unsigned long address)
+{
+	enum ctx_state prev_state;
+
+	switch (kvm_read_and_reset_pf_reason()) {
+	default:
+		/*
+		 * 子机页表异常直接在这里处理了
+		 */
+		do_page_fault(regs, error_code, address);
+		break;
+	/*
+	 * 母机页表异常会导致EPT violation / EPT misconfig，会产生vmexit
+	 * - 此时母机上会先于这里对apf做处理，并在vmentry前注入一个缺页异常，
+	 *   导致进入guest态后先来到了这里
+	 */
+	case KVM_PV_REASON_PAGE_NOT_PRESENT:
+		/* page is swapped out by the host. */
+		prev_state = exception_enter();
+		kvm_async_pf_task_wait((u32)address, !user_mode(regs));
+		exception_exit(prev_state);
+		break;
+	case KVM_PV_REASON_PAGE_READY:
+		rcu_irq_enter();
+		kvm_async_pf_task_wake((u32)address);
+		rcu_irq_exit();
+		break;
+	}
+}
+NOKPROBE_SYMBOL(do_async_page_fault);
+```
+
 vmexit流程：
 
 ```c
@@ -77,3 +113,7 @@ handle_ept_violation
   vcpu->arch.exit_qualification = exit_qualification
   kvm_mmu_page_fault
 ```
+
+### 参考文献
+
+- https://terenceli.github.io/%E6%8A%80%E6%9C%AF/2019/03/24/kvm-async-page-fault

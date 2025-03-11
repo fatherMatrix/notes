@@ -247,7 +247,7 @@ wb_workfn                                                           // 以各种
       queue_io
       writeback_sb_inodes
         make writeback_control
-        __writeback_single_inode
+        __writeback_single_inode                                    // 同一时刻只有一个内核线程可以在某个inode上进入该函数
           do_writepages
             address_space->a_ops->writepages
               write_cache_pages 5.x / iomap_writepages 6.x          // 针对特定inode开始flush pagecache
@@ -304,7 +304,19 @@ generic_file_buffered_read
 
 - dentry_hashtable
 
+- inlookup_hashtable
+
 - inode_hashtable
+  
+  - 哈希是{super_block, ino}，无需dentry参与
+
+- dcache
+  
+  - super_block->s_dentry_lru，
+
+- icache
+  
+  - super_block->s_inode_lru，参见`__inode_add_lru()`
 
 ## 关于inode.i_rwsem
 

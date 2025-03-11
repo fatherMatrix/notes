@@ -2,39 +2,9 @@
 
 <img title="" src="io.assets/0f155ba643ffe1a0dd9de1831edc42b11aa82f51.png" alt="" width="588">
 
-![](https://s6.51cto.com/oss/202111/30/9a5384a9e48a0cbfb787470292424d3e.jpg)
+<img title="" src="io.assets/522bdbca38e1c312d7d21059bcd70b7d58994bb9.jpg" alt="" width="591">
 
-<img src="https://i-blog.csdnimg.cn/blog_migrate/6c38a3fd6f7050f9ef10966e185cab11.png" title="" alt="在这里插入图片描述" width="1081">
-
-其中，Linux内核对SATA的实现有点坎坷，其将SATA硬盘作为SCSI硬盘实现，libata作为scsi和sata之间的转换层：
-
-<img title="" src="io.assets/8c4e7e7346b52727db2b0f5915b1fcfd6a9ddcd5.png" alt="" width="589">
-
-<img title="" src="io.assets/83cecc1e78dcfdfffcca536ee997a6d7e439b491.png" alt="" width="590">
-
-另一张图中，猜测ATA Bridge应该处于SCSI Lower Level？是的！
-
-![](io.assets/09a162a7f248cfad8560c1224cf07de8edd5f9f3.png)
-
-引用：
-
-三层结构：
-
-- The top layer handles operations for a class of device. For example, the sd (SCSI disk) driver is at this layer; it knows how to translate requests from the kernel block device interface into disk-specific commands in the SCSI protocol, and vice versa.
-
-- The middle layer moderates and routes the SCSI messages between the top and bottom layers, and keeps track of all of the SCSI buses and devices attached to the system.
-
-- The bottom layer handles hardware-specific actions. The drivers here send outgoing SCSI protocol messages to specific host adapters or hardware, and they extract incoming messages from the hardware. The reason for this separation from the top layer is that although SCSI messages are uniform for a device class (such as the disk class), different kinds of host adapters have varying procedures for sending the same messages.
-
-备注：
-
-The top and bottom layers contain many different drivers, but it’s important to remember that, for any given device file on your system, the kernel uses one top-layer driver and one lower-layer driver. For the disk at /dev/sda in our example, the kernel uses the sd top-layer driver and the ATA bridge lower-layer driver.
-
-There are times when you might use more than one upper-layer driver for one hardware device (see 3.6.3 Generic SCSI Devices). For true hardware SCSI devices, such as a disk attached to an SCSI host adapter or a hardware RAID controller, the lower-layer drivers talk directly to the hardware below. However, for most hardware that you find attached to the SCSI subsystem, it’s a different story.
-
-目前很少有底层直接使用SCSI设备的情况了，大部分情况是底层使用SATA设备。
-
-> 对于SAS盘，中间的转换库不是libata，而是libsas。
+<img title="" src="io.assets/43deeff819cb18e88c563e9df3282691211e1736.png" alt="" width="593">
 
 # Nvme
 
@@ -82,7 +52,92 @@ nvme_irq
 
 <img title="" src="io.assets/b9975b587ed307435af65dfcaf7f36fbe833c8ba.jpeg" alt="" width="771">
 
+Linux内核对SATA的实现有点坎坷，其将SATA硬盘作为SCSI硬盘实现，libata作为scsi和sata之间的转换层：
+
+<img title="" src="io.assets/8c4e7e7346b52727db2b0f5915b1fcfd6a9ddcd5.png" alt="" width="589">
+
+<img title="" src="io.assets/83cecc1e78dcfdfffcca536ee997a6d7e439b491.png" alt="" width="590">
+
+另一张图中，猜测ATA Bridge应该处于SCSI Lower Level？是的！
+
+![](io.assets/09a162a7f248cfad8560c1224cf07de8edd5f9f3.png)
+
+引用：
+
+三层结构：
+
+- The top layer handles operations for a class of device. For example, the sd (SCSI disk) driver is at this layer; it knows how to translate requests from the kernel block device interface into disk-specific commands in the SCSI protocol, and vice versa.
+
+- The middle layer moderates and routes the SCSI messages between the top and bottom layers, and keeps track of all of the SCSI buses and devices attached to the system.
+
+- The bottom layer handles hardware-specific actions. The drivers here send outgoing SCSI protocol messages to specific host adapters or hardware, and they extract incoming messages from the hardware. The reason for this separation from the top layer is that although SCSI messages are uniform for a device class (such as the disk class), different kinds of host adapters have varying procedures for sending the same messages.
+
+备注：
+
+The top and bottom layers contain many different drivers, but it’s important to remember that, for any given device file on your system, the kernel uses one top-layer driver and one lower-layer driver. For the disk at /dev/sda in our example, the kernel uses the sd top-layer driver and the ATA bridge lower-layer driver.
+
+There are times when you might use more than one upper-layer driver for one hardware device (see 3.6.3 Generic SCSI Devices). For true hardware SCSI devices, such as a disk attached to an SCSI host adapter or a hardware RAID controller, the lower-layer drivers talk directly to the hardware below. However, for most hardware that you find attached to the SCSI subsystem, it’s a different story.
+
+目前很少有底层直接使用SCSI设备的情况了，大部分情况是底层使用SATA设备。
+
+> 对于SAS盘，中间的转换库不是libata，而是libsas。
+
+## SCSI数据结构
+
+![](io.assets/93ce297a9f9e63515007bd87bf0fda0fca43c77a.jpeg)
+
+### Scsi_Host与scsi_host_template
+
+Scsi_Host表示一个主机适配器，包含两部分，一部分在Middle Layer中使用，另一部分在Bottom Layer中使用。
+
+scsi_host_template抽象公共部分，包括各操作函数指针集合。
+
+当PCI子系统通过ID匹配，或者手工方式，添加一个SCSI主机适配器时，SCSI低层驱动便分配一个Scsi_Host描述符。当系统中有多个SCSI主机适配器时，系统中就存在多个Scsi_Host描述符。
+
+在分配好SCSI主机适配器描述符后，将它添加到系统中，然后启动探测过程。探测到的scsi_target通过siblings链入主机适配器以_targets为表头的链表。而探测到的scsi_device将host域指向该主机适配器，而且一方面通过siblings链入主机适配器以_devices为表头的链表，另一方面通过same_target_siblings链入SCSI目标节点以devices为表头的链表。SCSI目标节点描述符和SCSI设备描述符各自有为SCSI低层驱动专用的信息，都通过hostdata域指向它们。
+
+SCSI各个核心结构的关系。一般来说一种类型的SCSI低层驱动可以驱动多个SCSI主机适配器。每个主机适配器可以挂接多个SCSI目标节点，每个目标节点中至多可以有多个逻辑设备。对于SCSI并行接口，目标节点数最多为7或15，这取决于SCSI总线的宽度，对于SCSI磁盘，逻辑设备数最多为8。
+
+![](io.assets/ce724f29d86fca4853e1b756d44e980db0c9d713.jpeg)
+
+### scsi_target
+
+表示一个目标节点，目标节点是指有一个逻辑单元或多个逻辑单元的目标设备。
+
+### scsi_device
+
+表示一个逻辑设备。
+
+### scsi_cmnd
+
+表示一个scsi命令
+
+## SCSI子系统初始化
+
+## SCSI IO下发
+
+```c
+blk_mq_dispatch_rq_list / __blk_mq_issue_directly
+  scsi_queue_rq
+    scsi_cmnd->scsi_done = scsi_mq_done
+    scsi_dispatch_cmd
+      Scsi_Host->scsi_host_template->queuecommand()
+```
+
+对于libsas，`->queuecommand`为`sas_queuecommand()`：
+
+```c
+sas_queuecommand
+  sas_create_task
+    sas_task = sas_alloc_task()                                                // 分配struct sas_task
+    sas_task->scsi_cmnd = cmd
+    sas_task->task_done = sas_scsi_task_done
+  sas_internal->sas_domain_function_template->lldd_execute_task(sas_task)
+```
+
 ## SCSI IO完成
+
+从中断开始：
 
 ```c
 vring_interrupt
@@ -94,10 +149,15 @@ vring_interrupt
 scsi_cmnd->scsi_done() / scsi_mq_done
   blk_mq_complete_request
     __blk_mq_complete_request
-      ...
+      if (request_queue->nr_hw_queues == 1)
+        __blk_complete_request                              // 如果硬盘只有一个队列，则只有一个irq，从而只有一个cpu来接收这个硬盘的中断，因此不能在硬中断上下文中做太多动作，转而使用软中断处理
+          raise_softirq_irqoff(BLOCK_SOFTIRQ)
+      else
+        request_queue->mq_ops->complete()                   // nvme直接在硬中断上下文中处理
 
 blk_done_softirq                                            // BLOCK_SOFTIRQ软中断的处理函数
   request_queue->mq_ops->complete() / scsi_softirq_done
+    scsi_decide_disposition                                 // 错误恢复流程
     scsi_log_completion                                     // 超时打印在这里
     scsi_finish_command
       scsi_io_completion / scsi_io_completion_action
@@ -105,6 +165,13 @@ blk_done_softirq                                            // BLOCK_SOFTIRQ软�
           blk_update_request
           __blk_mq_end_request
         scsi_run_queue_async
+```
+
+## SCSI IO错误恢复
+
+```c
+scsi_decide_disposition
+  
 ```
 
 ## 参考文献
