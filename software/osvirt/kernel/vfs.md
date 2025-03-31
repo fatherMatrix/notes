@@ -196,7 +196,7 @@ __sys_setxattr
             trusted. 需要CAP_SYS_ADMIN
             inode_permisskkkkion
           security_inode_setxattr
-            cap_inode_setxattr          // security. 要求有CAP_SYS_ADMIN  (除security.capability)
+            cap_inode_setxattr          // security. 要求有CAP_SYS_ADMIN  (除security.capability)        -- 在这里限制仅secadm可以执行setxattr(security.biba)
               ns_capable(CAP_SYS_ADMIN)
                 ns_capable_common
                   security_capable      // selinux_capable
@@ -302,9 +302,9 @@ generic_file_buffered_read
   
   - 参见`attach_mnt()`
 
-- dentry_hashtable
-
 - inlookup_hashtable
+  
+  - 哈希是{parent dentry, last name hash}
 
 - inode_hashtable
   
@@ -312,7 +312,14 @@ generic_file_buffered_read
 
 - dcache
   
-  - super_block->s_dentry_lru，
+  - super_block->s_dentry_lru
+    - d_lru_add() / d_lru_del()
+    - 都是保留了inode的？
+    - lockref.count都等于0（未使用状态） -- 仅仅是期望，如果中途变更为inused状态了，还需要依靠shrink过程发现并将其顺手摘下，这里存在一个小的时间窗口
+    - 是dentry_hashtable的子集
+  - dentry_hashtable
+    - 哈希是{parent dentry, last name}
+    - 在super_block->s_dentry_lru的基础上，包括了使用中状态、负状态
 
 - icache
   

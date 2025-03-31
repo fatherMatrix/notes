@@ -146,7 +146,7 @@ vring_interrupt
       fn / virtscsi_complete_cmd
         scsi_cmnd->scsi_done
 
-scsi_cmnd->scsi_done() / scsi_mq_done
+scsi_cmnd->scsi_done() / scsi_mq_done                       
   blk_mq_complete_request
     __blk_mq_complete_request
       if (request_queue->nr_hw_queues == 1)
@@ -171,7 +171,6 @@ blk_done_softirq                                            // BLOCK_SOFTIRQ软�
 
 ```c
 scsi_decide_disposition
-  
 ```
 
 ## 参考文献
@@ -223,6 +222,14 @@ dm_setup_md_queue
 ```
 
 # blk-mq
+
+## 数据结构
+
+1：`struct blk_mq_ctx`代表每个CPU独有的软件队列；
+2：`struct blk_mq_hw_ctx`代表硬件队列，块设备至少有一个；
+3：`struct blk_mq_tag`每个硬件队列结构struct blk_mq_hw_ctx对应一个；
+4：`struct blk_mq_tag`主要是管理struct request(下文简称req)的分配。struct request大家应该都比较熟悉了，单队列时代就存在，IO传输的最后都要把bio转换成request；
+5：`struct blk_mq_tag_set`包含了块设备的硬件配置信息，比如支持的硬件队列数nr_hw_queues、队列深度queue_depth等，在块设备驱动初始化时多处使用blk_mq_tag_set初始化其他成员；
 
 ## 队列创建
 
@@ -283,3 +290,50 @@ nvme_alloc_admin_tags
       blk_mq_map_swqueue                              // 完成软件队列和硬件队列的映射关系
       elevator_init_mq                                // 初始化io调度器
 ```
+
+## 请求处理
+
+```c
+blk_mq_make_request
+  
+```
+
+# blkio cgroup
+
+## 限速
+
+```c
+blkio
+```
+
+# CFQ调度器
+
+## 描述调度器相关的数据结构
+
+- `struct cfq_data`
+  
+  - 描述调度器本身
+
+- `struct cfq_queue`
+  
+  - 描述调度队列
+
+## 描述进程相关的数据结构
+
+- `struct io_context`
+  
+  - 核心结构是一个基数树，里面组织了进程所访问的所有块设备所对应的`struct cfq_io_context`
+
+- `struct cfq_io_context`
+  
+  - 核心结构是两个队列，也就是进程在一个CFQ调度器所关系到的队列，一个是同步的，一个是异步的
+
+图示：
+
+![](io.assets/b1208877f8e39b464d3de4468c30e28ca005a77b.jpg)
+
+## 参考资料
+
+- https://blog.51cto.com/alanwu/1393078
+
+- 一个IO的传奇一生系列 https://zhuanlan.zhihu.com/p/669010858

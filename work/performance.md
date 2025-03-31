@@ -35,6 +35,10 @@
   
   - https://lore.kernel.org/linux-xfs/20250303171120.2837067-1-john.g.garry@oracle.com/T/#ma683955be4cef0ea37b158396b03b704780b39f8
 
+- 硬件16K原子写
+  
+  - https://lwn.net/Articles/1009298/
+
 # 需要学习的特性：
 
 - arm64 sdei，弥补没有nmi中断时的perf采样
