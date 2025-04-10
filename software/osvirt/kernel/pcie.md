@@ -12,15 +12,15 @@ PCI/PCIe设备有三个空间：
 
 ### 整体配置空间
 
-![](pci.assets/df251786662fad26a81a3d13872ea049858b055d.png)
+![](pcie.assets/df251786662fad26a81a3d13872ea049858b055d.png)
 
 ### 配置空间头
 
 配置空间头占据整体配置空间的前64字节：
 
-![](pci.assets/349f1f88be47915280ab73877fa313eb50d67b21.png)
+![](pcie.assets/349f1f88be47915280ab73877fa313eb50d67b21.png)
 
-## Capability机制
+### Capability机制
 
 ```
 31                 16 15       8  7       0
@@ -37,7 +37,24 @@ PCI/PCIe设备有三个空间：
   
   - 第一个Capability结构的地址在配置空间头的Capability字段中记录
 
+# 数据结构
+
+![](pcie.assets/b64663f9d251415edf2f0c7ef7bb9abb8816c1a3.png)
+
+# 总线驱动模型
+
+![](pcie.assets/386c20157640fd4ae67a405f7311eadb37921fbf.png)
+
 # 总线枚举与初始化
+
+关键调用顺序
+
+```c
+|-->pcibus_class_init
+|-->pci_driver_init
+|-->acpi_pci_init
+|-->acpi_init        // 这里面会进行pci总线的枚举
+```
 
 `start_kernel()`中直接调用的pci/pcie初始化相关代码：
 
@@ -92,6 +109,8 @@ postcore_initcall(pcibus_class_init);
 ## pci_driver_init
 
 注册`pci/pcie`两类总线。该函数执行结束后，会产生`/sys/bus/pci/`和`/sys/bus/pci_express`两个目录，之后当使用`device_register()`函数注册一个新的pci设备时，将在`/sys/bus/{pci,pci_express}/drivers/`目录下创建这个设备使用的目录。
+
+`pci_bus_match()`和`pcie_port_bus_match()`用来检查设备与驱动是否匹配，一旦匹配则调用pci_device_probe函数。
 
 ```c
 struct bus_type pci_bus_type = {
@@ -237,3 +256,90 @@ acpi_add_root_add
 ## pci_hotplug_init
 
 ## pci_sysfs_init
+
+# 总线及设备的实例化
+
+## pci_host_probe
+
+![](pcie.assets/85e0cecad13f3558fb8f163abb06f1398369824a.png)
+
+- 设备的扫描从pci_scan_root_bus_bridge开始，首先需要先向系统注册一个host bridge，在注册的过程中需要创建一个root bus，也就是bus 0，在pci_register_host_bridge函数中，主要是一系列的初始化和注册工作，此外还为总线分配资源，包括地址空间等；
+
+- pci_scan_child_bus开始，从bus 0向下扫描并添加设备，这个过程由pci_scan_child_bus_extend来完成；
+
+- 从pci_scan_child_bus_extend的流程可以看出，主要有两大块：
+
+- PCI设备扫描，从循环也能看出来，每条总线支持32个设备，每个设备支持8个功能，扫描完设备后将设备注册进系统，pci_scan_device的过程中会去读取PCI设备的配置空间，获取到BAR的相关信息，细节不表了；
+
+- PCI桥设备扫描，PCI桥是用于连接上一级PCI总线和下一级PCI总线的，当发现有下一级总线时，创建子结构，并再次调用pci_scan_child_bus_extend的函数来扫描下一级的总线，从这个过程看，就是一个递归过程。
+
+- 从设备的扫描过程看，这是一个典型的DFS（Depth First Search）过程，熟悉数据结构与算法的同学应该清楚，这就类似典型的走迷宫的过程；
+
+# pci驱动与设备的匹配
+
+  匹配由两种行为触发：
+
+- 新device添加
+
+- 新driver注册
+
+## 新device添加
+
+  新设备添加到系统上之后，**猜测**应该由固件通过`ACPI`告知操作系统，具体告知方式可能为`SMI中断`或者`SCI中断`。最终应该调用到`pci_device_add()`函数：
+
+```c
+pci_device_add(pci_dev dev, xxx)      // 本函数在调用前dev中的bus字段已经设置
+device_add                            // core函数
+  bus_add_device
+    klist_add_tail                    // 将device加入bus的device list
+  bus_probe_device
+    device_initial_probe              // 如果设置了自动探测
+      device_attach
+        __device_attach_driver
+          driver_match_device
+            device_driver->bus->match // pci_bus_match()
+          driver_probe_device         // 如果上一步匹配上了 <------- 最终驱动
+```
+
+## 新driver注册
+
+```c
+pci_register_driver
+__pci_register_driver
+  drv->driver.bus = &pci_bus_type        // 表明driver所属总线
+  driver_register                        // core函数
+    bus_add_driver
+      klist_add_tail                     // 将driver加入bus的driver list
+      driver_attach                      // 如果设置了自动探测，则进行操作
+        __driver_attach
+          driver_match_device
+            device_driver->bus->match    // pci_bus_match()
+          device_driver_attach           // 如果上一步匹配上了
+            driver_probe_device          // <------------------------- 最终驱动
+```
+
+## driver_probe_device
+
+  最终会先尝试调用bus的probe函数，其中会回调到驱动的probe函数；如果bus的probe函数未定义，则直接调用driver的probe函数。  
+
+- pci总线定义了probe函数：`pci_device_probe()`。其中做一些动作后会调用driver的probe函数。
+
+- pcie总线未定义probe函数，直接调用driver的probe函数。
+
+## pci_bus_match
+
+```c
+pci_bus_match
+to_pci_dev                // 获取要匹配的设备
+to_pci_driver             // 获取要匹配的驱动
+pci_match_device
+  pci_match_one_device    // 根据vendor id, device id等进行匹配
+```
+
+- 设备或者驱动注册后，触发pci_bus_match函数的调用，实际会去比对vendor和device等信息，这个都是厂家固化的，在驱动中设置成PCI_ANY_ID就能支持所有设备；
+
+- 一旦匹配成功后，就会去触发pci_device_probe的执行。
+
+## pci_device_probe
+
+![](pcie.assets/e7ca119ead4782a3a9833c83fa532c613187a2a6.png)

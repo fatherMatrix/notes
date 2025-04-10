@@ -11,10 +11,10 @@ kvm加速器架构：
 
 加速cpu架构：
 
-| TYPE_XXX              | TypeInfo                | Object     | ObjectClass    |
-| --------------------- | ----------------------- | ---------- | -------------- |
-| TYPE_ACCEL_CPU        | accel_cpu_type          | -          | AccelCPUClass  |
-| ACCEL_CPU_NAME("kvm") | kvm_cpu_accel_type_info | -          | -              |
+| TYPE_XXX              | TypeInfo                | Object | ObjectClass   |
+| --------------------- | ----------------------- | ------ | ------------- |
+| TYPE_ACCEL_CPU        | accel_cpu_type          | -      | AccelCPUClass |
+| ACCEL_CPU_NAME("kvm") | kvm_cpu_accel_type_info | -      | -             |
 
 qemu主线程：
 
@@ -93,6 +93,7 @@ kvm_vcpu_thread_fn
 iothread线程：
 
 ```c
+
 ```
 
 ## 参考文献

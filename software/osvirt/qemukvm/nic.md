@@ -137,7 +137,7 @@ virtio网卡是两个结构粘在一起的：
  };
 ```
 
-## VirtIONetPCI类型的注册
+## VirtIONetPCI类型的注册 - v6.x
 
 ```c
 static const VirtioPCIDeviceTypeInfo virtio_net_pci_info = { 
@@ -158,14 +158,14 @@ static void virtio_net_pci_register(void)
 type_init(virtio_net_pci_register)
 ```
 
-## VirtIONetPCI类型的初始化
+## VirtIONetPCI类型的初始化 - v6.x
 
 ```c
 virtio_net_pci_class_init
   VirtioPCIClass->realize = virtio_net_pci_realize
 ```
 
-## VirtIONetPCI类型的实例化
+## VirtIONetPCI类型的实例化 - v6.x
 
 ```c
 virtio_net_pci_instance_init

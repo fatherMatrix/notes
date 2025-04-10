@@ -1,9 +1,0 @@
-=== ARM64 CPU Feature
-
-.UML Diagram Example
-[plantuml,target="uml-example"]
---
-struct arm64_features {}
-struct cpu_hwcaps {}
-struct cpu_hwcaps_ptrs {}
---
