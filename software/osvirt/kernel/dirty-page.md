@@ -147,3 +147,27 @@ That is where the problem arises: if the kernel writes to its mapping after the 
 - **内核代码可能通过set_page_dirty()将其page结构体标脏，进而在没有准备iomap_page/buffer_head的情况下触发再次writeback回写，最终导致空指针。**
 
 - **内核代码也可能没有set_page_dirty()将其page结构体标脏，但此时如果用户态不写mmap，那内核代码写的数据可能永远也没有机会落盘。**
+
+# 内核脏页平衡
+
+## sysctl
+
+### 接口
+
+- `/proc/sys/vm/dirty_bytes`
+  
+  - vm_dirty_bytes
+
+- `/proc/sys/vm/dirty_background_bytes`
+  
+  - 
+
+- `/proc/sys/vm/dirty_ratio`
+
+- `/proc/sys/vm/dirty_background_ratio`
+
+- `/proc/sys/vm/dirty_expire_centisecs`
+
+- `/proc/sys/vm/dirty_writeback_centisecs`
+
+- `/proc/sys/vm/dirtytime_expire_seconds`
